@@ -1,0 +1,115 @@
+<script>
+  (() => {
+    const form = document.querySelector({{ guard_form_selector|default('form')|tojson }});
+    if (!form) return;
+
+    const contextLabel = {{ guard_context_label|default('assessment')|tojson }};
+    let alreadyHandled = false;
+
+    function ensureAutoSubmitPayload() {
+      form.querySelectorAll('input[type="number"]').forEach((input) => {
+        if (!input.value) input.value = "0";
+      });
+
+      form.querySelectorAll('input[type="text"], input:not([type]), textarea').forEach((input) => {
+        if (!input.value) input.value = "0";
+      });
+
+      form.querySelectorAll("select").forEach((select) => {
+        if (select.value) return;
+        const fallbackOption = [...select.options].find((option) => option.value !== "");
+        if (fallbackOption) select.value = fallbackOption.value;
+      });
+
+      form.querySelectorAll("[required]").forEach((field) => {
+        if (
+          (field.type === "radio" || field.type === "checkbox") &&
+          field.name &&
+          form.querySelector(`input[name="${field.name}"]:checked`)
+        ) {
+          return;
+        }
+        field.required = false;
+      });
+
+      if (!form.querySelector('input[name="auto_submit"]')) {
+        const autoInput = document.createElement("input");
+        autoInput.type = "hidden";
+        autoInput.name = "auto_submit";
+        autoInput.value = "1";
+        form.appendChild(autoInput);
+      }
+    }
+
+    function showAutoSubmitModal(onConfirm) {
+      const modal = document.createElement("div");
+      modal.innerHTML = `
+        <div style="position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:9999;">
+          <div style="background:#fff;padding:2em;border-radius:10px;max-width:420px;text-align:center;box-shadow:0 0 20px #0003;">
+            <h4 style="color:#d9534f;">Auto-Submission Notice</h4>
+            <p>Because you tried to open another tab or window, this ${contextLabel} will be auto-submitted for anti-cheating protection.<br>
+            Phone calls, temporary ads, and other brief interruptions will not trigger this.<br>
+            <b>This dialog will remain until you click OK.</b></p>
+            <button id="autoSubmitOkBtn" class="btn btn-danger mt-2">OK</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+      document.getElementById("autoSubmitOkBtn").onclick = function () {
+        modal.remove();
+        if (onConfirm) onConfirm();
+      };
+    }
+
+    function handleTabOpenAttempt(event) {
+      if (alreadyHandled) return;
+      alreadyHandled = true;
+      if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+      ensureAutoSubmitPayload();
+      showAutoSubmitModal(() => form.submit());
+    }
+
+    document.addEventListener("keydown", (event) => {
+      const key = event.key.toLowerCase();
+      const opensNewTab = (event.ctrlKey || event.metaKey) && (key === "t" || key === "n");
+      if (opensNewTab) {
+        handleTabOpenAttempt(event);
+        return;
+      }
+
+      if (
+        (event.ctrlKey && ["c", "v", "x"].includes(key)) ||
+        event.key === "PrintScreen"
+      ) {
+        event.preventDefault();
+      }
+    });
+
+    document.addEventListener("click", (event) => {
+      const link = event.target.closest("a");
+      if (!link) return;
+
+      const opensAnotherTab =
+        link.target === "_blank" || event.ctrlKey || event.metaKey || event.shiftKey;
+      if (opensAnotherTab) {
+        handleTabOpenAttempt(event);
+      }
+    });
+
+    document.addEventListener("auxclick", (event) => {
+      if (event.button !== 1) return;
+      const link = event.target.closest("a");
+      if (link) handleTabOpenAttempt(event);
+    });
+
+    window.open = function () {
+      handleTabOpenAttempt();
+      return null;
+    };
+
+    document.addEventListener("contextmenu", (event) => event.preventDefault());
+  })();
+</script>

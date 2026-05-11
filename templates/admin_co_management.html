@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CO Management - Admin</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</head>
+<body>
+    <div class="container mt-4">
+        <!-- Navigation -->
+        <nav class="d-flex justify-content-between align-items-center mb-4">
+            <h2>Course Outcome (CO) Management</h2>
+            <a href="{{ url_for('admin_dashboard') }}" class="btn btn-primary">Back to Dashboard</a>
+        </nav>
+
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+            <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        <!-- CO Mapping Form -->
+        <div class="card">
+            <div class="card-header">
+                <h4>Assign Questions to Course Outcomes</h4>
+                <p class="mb-0 text-muted">Configure which questions belong to which Course Outcome (CO1-CO5)</p>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Question</th>
+                                    <th>Course Outcome</th>
+                                    <th>Maximum Marks</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for i in range(1, 12) %}
+                                <tr>
+                                    <td><strong>Problem {{ i }}</strong></td>
+                                    <td>
+                                        <select name="q{{ i }}_co" class="form-select" required>
+                                            <option value="">Select CO</option>
+                                            {% for co in ['CO1', 'CO2', 'CO3', 'CO4', 'CO5'] %}
+                                            <option value="{{ co }}" 
+                                                {% if mappings.get(i) and mappings[i].co_number == co %}selected{% endif %}>
+                                                {{ co }}
+                                            </option>
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <input type="number" 
+                                               name="q{{ i }}_marks" 
+                                               class="form-control" 
+                                               value="{{ mappings.get(i).max_marks if mappings.get(i) else 10.0 }}"
+                                               step="0.5" 
+                                               min="0" 
+                                               max="20" 
+                                               required>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-success btn-lg">
+                            Update CO Mappings
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Current Mappings Summary -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h4>Current CO Distribution</h4>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% for co in ['CO1', 'CO2', 'CO3', 'CO4', 'CO5'] %}
+                    <div class="col-md-2">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <h5>{{ co }}</h5>
+                                <p class="mb-1">
+                                    <strong>Questions:</strong><br>
+                                    {% set questions = [] %}
+                                    {% for q_num, mapping in mappings.items() %}
+                                        {% if mapping.co_number == co %}
+                                            {% set _ = questions.append(q_num) %}
+                                        {% endif %}
+                                    {% endfor %}
+                                    {{ questions|join(', ') if questions else 'None' }}
+                                </p>
+                                <p class="mb-0">
+                                    <strong>Total Marks:</strong><br>
+                                    {{ mappings.values()|selectattr('co_number', 'equalto', co)|sum(attribute='max_marks') }}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- View CO Analysis Link -->
+        <div class="text-center mt-4">
+            <a href="{{ url_for('admin_co_analysis') }}" class="btn btn-info btn-lg">
+                View CO Analysis & Student Performance
+            </a>
+        </div>
+    </div>
+</body>
+</html>

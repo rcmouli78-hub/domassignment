@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Problem 7</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+  </head>
+  <body class="bg-light">
+    <div class="container mt-5">
+      <div class="card shadow-lg">
+        <div class="card-header bg-dark text-white">
+          <h3>Problem 7: Transverse Vibrations of a Shaft</h3>
+        </div>
+        <div class="card-body">
+          <p class="lead">
+            A shaft of <b>{{ vars.shaft_diameter }} mm</b> diameter and
+            <b>{{ vars.shaft_length }} m</b> length is simply supported at both
+            ends. It carries three concentrated loads:
+          </p>
+          <ul>
+            <li>
+              {{ vars.load1 }} N at {{ vars.distance1 }} m from the left support
+            </li>
+            <li>
+              {{ vars.load2 }} N at {{ vars.distance2 }} m from the left support
+            </li>
+            <li>
+              {{ vars.load3 }} N at {{ vars.distance3 }} m from the left support
+            </li>
+          </ul>
+          <p>
+            The Young’s Modulus of the shaft material is
+            <b>{{ vars.young_modulus }} GPa</b>.
+          </p>
+          <p>
+            <b>Task:</b> Calculate the
+            <u>natural frequency of transverse vibration</u>
+            of the shaft in Hz.
+          </p>
+
+          {% if feedback %}
+          <div
+            class="alert {% if '✅' in feedback %}alert-success{% else %}alert-danger{% endif %}"
+          >
+            {{ feedback }}
+          </div>
+
+          {% if steps %}
+          <h4>Solution Steps:</h4>
+          <ol>
+            {% for s in steps %}
+            <li>{{ s }}</li>
+            {% endfor %}
+          </ol>
+          {% endif %}
+          <a
+            href="{% if user.role in ['admin', 'super_admin'] %}{{ url_for('admin_assignment_view') }}{% else %}{{ url_for('student_dashboard') }}{% endif %}"
+            class="btn btn-primary mt-3"
+            >Back to Dashboard</a
+          >
+          {% else %}
+          <!-- Check if user has exceeded attempts -->
+          {% if user and user.p7_attempts >= 2 and user.role not in ['admin',
+          'super_admin'] %}
+          <div class="alert alert-warning">
+            <h4>Maximum Attempts Reached</h4>
+            <p>
+              You have used all your attempts ({{ user.p7_attempts }}/2) for
+              this problem.
+            </p>
+            <p>Your best score: {{ user.p7_score }} points</p>
+            <a
+              href="{% if user.role in ['admin', 'super_admin'] %}{{ url_for('admin_assignment_view') }}{% else %}{{ url_for('student_dashboard') }}{% endif %}"
+              class="btn btn-primary"
+              >Back to Dashboard</a
+            >
+          </div>
+          {% else %}
+          <!-- Show form only if attempts available -->
+          {% if user %}
+          <div class="alert alert-info">
+            Attempts used: {{ user.p7_attempts }}/2 | Current score: {{
+            user.p7_score }} points
+          </div>
+          {% endif %}
+          <form method="POST" class="mt-4">
+            <div class="mb-3">
+              <label for="answer" class="form-label">Frequency (Hz):</label>
+              <input
+                type="text"
+                name="answer"
+                id="answer"
+                class="form-control"
+                required
+              />
+            </div>
+            <button type="submit" class="btn btn-success">Submit Answer</button>
+          </form>
+          {% endif %} {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Include celebration animation if perfect first attempt -->
+    {% if show_celebration %} {% include 'celebration.html' %} {% endif %}
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  </body>
+  {% if user.role == 'student' %}
+  {% set guard_form_selector = 'form' %}
+  {% set guard_context_label = 'assignment' %}
+  {% include '_strict_tab_open_guard.html' %}
+  {% endif %}
+</html>

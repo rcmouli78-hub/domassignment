@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Python Lab Quiz Results</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+    />
+    <style>
+      body {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      }
+
+      .results-container {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border-radius: 20px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+      }
+
+      .results-header {
+        background: linear-gradient(135deg, #4caf50 0%, #45a049 100%);
+        color: white;
+        border-radius: 20px 20px 0 0;
+        padding: 2rem;
+        text-align: center;
+      }
+
+      .score-card {
+        background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 2rem;
+        text-align: center;
+        box-shadow: 0 8px 16px rgba(33, 150, 243, 0.3);
+      }
+
+      .module-card {
+        background: white;
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        border-left: 4px solid #007bff;
+      }
+
+      .question-card {
+        background: white;
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      }
+
+      .question-card.correct {
+        border-left: 4px solid #28a745;
+      }
+
+      .question-card.incorrect {
+        border-left: 4px solid #dc3545;
+      }
+
+      .question-card.unanswered {
+        border-left: 4px solid #6c757d;
+      }
+
+      .option {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 0.75rem 1rem;
+        margin-bottom: 0.5rem;
+      }
+
+      .option.correct-answer {
+        background: #d4edda;
+        border-color: #c3e6cb;
+        color: #155724;
+      }
+
+      .option.student-answer {
+        background: #f8d7da;
+        border-color: #f5c6cb;
+        color: #721c24;
+      }
+
+      .option.student-correct {
+        background: #d1ecf1;
+        border-color: #bee5eb;
+        color: #0c5460;
+      }
+
+      .module-badge {
+        background: linear-gradient(135deg, #9c27b0 0%, #7b1fa2 100%);
+        color: white;
+        padding: 0.3rem 0.8rem;
+        border-radius: 20px;
+        font-size: 0.8rem;
+      }
+
+      .performance-bar {
+        height: 20px;
+        border-radius: 10px;
+        overflow: hidden;
+      }
+
+      .summary-stats {
+        background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container py-4">
+      {% if request.args.get('auto_submit') == '1' %}
+      <div class="alert alert-warning text-center">
+        <i class="fas fa-exclamation-triangle"></i>
+        Your quiz was automatically submitted because you switched tabs, windows, or lost browser focus. Please avoid switching away from the quiz window during the attempt.
+      </div>
+      {% endif %}
+      <!-- Back Button -->
+      <div class="mb-3">
+        {% if user.role == 'student' %}
+        <a
+          href="{{ url_for('python_lab_student_dashboard') }}"
+          class="btn btn-outline-light"
+        >
+          <i class="fas fa-arrow-left"></i> Back to Dashboard
+        </a>
+        {% else %}
+        <a
+          href="{{ url_for('python_lab_quiz_results') }}"
+          class="btn btn-outline-light"
+        >
+          <i class="fas fa-arrow-left"></i> Back to Quiz Results
+        </a>
+        {% endif %}
+      </div>
+
+      <!-- Results Header -->
+      <div class="results-container mb-4">
+        <div class="results-header">
+          <h1>
+            <i class="fab fa-python"></i> Python Programming Lab Quiz Results
+          </h1>
+          {% if user.role != 'student' and student %}
+          <h3>Student: {{ student.fullname }} ({{ student.rollnumber }})</h3>
+          {% endif %}
+          <h4>Attempt #{{ attempt.attempt_number }}</h4>
+          <p class="mb-0">
+            Completed on {{ attempt.completed_at.strftime('%B %d, %Y at %I:%M
+            %p') if attempt.completed_at else 'Just now' }}
+          </p>
+        </div>
+
+        <div class="p-4">
+          <div class="row">
+            <!-- Overall Score -->
+            <div class="col-md-4 mb-4">
+              <div class="score-card">
+                <h2>{{ attempt.score }}%</h2>
+                <p class="mb-0">Overall Score</p>
+                <small
+                  >{{ (attempt.score * attempt.total_questions // 100) }}/{{
+                  attempt.total_questions }} correct</small
+                >
+              </div>
+            </div>
+
+            <!-- Summary Stats -->
+            <div class="col-md-8 mb-4">
+              <div class="summary-stats">
+                <h5><i class="fas fa-chart-bar"></i> Performance Summary</h5>
+                <div class="row text-center mt-3">
+                  <div class="col-3">
+                    <h4>
+                      {{ (attempt.score * attempt.total_questions // 100) }}
+                    </h4>
+                    <small>Correct</small>
+                  </div>
+                  <div class="col-3">
+                    <h4>
+                      {{ attempt.total_questions - (attempt.score *
+                      attempt.total_questions // 100) }}
+                    </h4>
+                    <small>Incorrect</small>
+                  </div>
+                  <div class="col-3">
+                    <h4>{{ attempt.total_questions }}</h4>
+                    <small>Total Questions</small>
+                  </div>
+                  <div class="col-3">
+                    <h4>
+                      {% if attempt.score >= 80 %}A {% elif attempt.score >= 70
+                      %}B {% elif attempt.score >= 60 %}C {% elif attempt.score
+                      >= 50 %}D {% else %}F {% endif %}
+                    </h4>
+                    <small>Grade</small>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Module-wise Performance -->
+          <div class="mb-4">
+            <h4 class="mb-3">
+              <i class="fab fa-python"></i> Module-wise Performance
+            </h4>
+            <div class="row">
+              {% for module_num in range(1, 6) %} {% set perf =
+              module_performance[module_num] %}
+              <div class="col-md-6 col-lg-4 mb-3">
+                <div class="module-card">
+                  <div
+                    class="d-flex justify-content-between align-items-center mb-2"
+                  >
+                    <h6 class="mb-0">Module {{ module_num }}</h6>
+                    <span class="module-badge"
+                      >{{ perf.correct }}/{{ perf.total }}</span
+                    >
+                  </div>
+                  <p class="text-muted mb-2">{{ modules[module_num] }}</p>
+
+                  <div class="performance-bar mb-2">
+                    <div class="progress">
+                      <div
+                        class="progress-bar {% if perf.percentage >= 80 %}bg-success {% elif perf.percentage >= 60 %}bg-warning {% else %}bg-danger {% endif %}"
+                        style="width: {{ perf.percentage }}%"
+                      ></div>
+                    </div>
+                  </div>
+                  <small class="text-muted"
+                    >{{ "%.0f" | format(perf.percentage) }}% accuracy</small
+                  >
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+
+          <!-- Navigation and Actions -->
+          <div class="text-center mb-4">
+            {% if user.role == 'student' %}
+            <a
+              href="{{ url_for('python_lab_student_dashboard') }}"
+              class="btn btn-primary me-2"
+            >
+              <i class="fas fa-arrow-left"></i> Back to Dashboard
+            </a>
+            {% else %}
+            <a
+              href="{{ url_for('python_lab_quiz_results') }}"
+              class="btn btn-primary me-2"
+            >
+              <i class="fas fa-arrow-left"></i> Back to Quiz Results
+            </a>
+            {% endif %}
+            <button class="btn btn-info" onclick="window.print()">
+              <i class="fas fa-print"></i> Print Results
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Detailed Question Analysis -->
+      <div class="results-container">
+        <div class="p-4">
+          <h4 class="mb-3">
+            <i class="fas fa-list-alt"></i> Detailed Question Analysis
+          </h4>
+
+          {% for question_data in quiz_questions_data %} {% set question =
+          questions[question_data.id] %} {% set response =
+          question_responses.get(question_data.id) %} {% set is_correct =
+          response and response.is_correct %} {% set student_answer =
+          response.student_answer if response else None %}
+
+          <div
+            class="question-card {% if is_correct %}correct {% elif student_answer %}incorrect {% else %}unanswered {% endif %}"
+          >
+            <div class="d-flex justify-content-between align-items-start mb-3">
+              <div class="d-flex align-items-center">
+                <h6 class="mb-0 me-2">Question {{ loop.index }}</h6>
+                {% if is_correct %}
+                <span class="badge bg-success"
+                  ><i class="fas fa-check"></i> Correct</span
+                >
+                {% elif student_answer %}
+                <span class="badge bg-danger"
+                  ><i class="fas fa-times"></i> Incorrect</span
+                >
+                {% else %}
+                <span class="badge bg-secondary"
+                  ><i class="fas fa-minus"></i> Not Answered</span
+                >
+                {% endif %}
+              </div>
+              <span class="module-badge">
+                Module {{ question_data.module }}
+              </span>
+            </div>
+
+            <p class="question-text mb-3">{{ question.question }}</p>
+
+            <div class="options">
+              {% for option_letter, option_text in [('A', question.option_a),
+              ('B', question.option_b), ('C', question.option_c), ('D',
+              question.option_d)] %}
+              <div
+                class="option {% if option_letter == question.correct_answer %}correct-answer {% elif option_letter == student_answer and option_letter != question.correct_answer %}student-answer {% elif option_letter == student_answer and option_letter == question.correct_answer %}student-correct {% endif %}"
+              >
+                <div class="d-flex align-items-center justify-content-between">
+                  <div>
+                    <strong>{{ option_letter }})</strong> {{ option_text }}
+                  </div>
+                  <div>
+                    {% if option_letter == question.correct_answer %}
+                    <i class="fas fa-check-circle text-success"></i>
+                    <small class="text-success ms-1">Correct Answer</small>
+                    {% endif %} {% if option_letter == student_answer %}
+                    <i class="fas fa-user text-primary"></i>
+                    <small class="text-primary ms-1">Your Answer</small>
+                    {% endif %}
+                  </div>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+
+            {% if not student_answer %}
+            <div class="alert alert-secondary mt-2 mb-0">
+              <i class="fas fa-exclamation-triangle"></i>
+              <strong>Not Answered:</strong> You didn't select any option for
+              this question.
+            </div>
+            {% elif not is_correct %}
+            <div class="alert alert-info mt-2 mb-0">
+              <i class="fas fa-lightbulb"></i>
+              <strong>Explanation:</strong> The correct answer is
+              <strong>{{ question.correct_answer }}</strong>. You selected
+              <strong>{{ student_answer }}</strong>.
+            </div>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  </body>
+</html>

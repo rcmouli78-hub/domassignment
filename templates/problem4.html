@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Problem 4 - Gyroscopic Couple (Ship)</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        background-color: #f8f9fa;
+      }
+      .container {
+        max-width: 900px;
+        margin-top: 50px;
+      }
+      .card {
+        padding: 25px;
+        border-radius: 10px;
+      }
+      .steps {
+        background-color: #f1f1f1;
+        padding: 15px;
+        border-radius: 8px;
+        margin-top: 20px;
+      }
+      h2,
+      h3 {
+        color: #333;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="card shadow">
+        <h2 class="text-center mb-4">
+          Problem 4: Gyroscopic Couple for a Ship
+        </h2>
+
+        <p>
+          A ship has a turbine rotor of mass
+          <strong>{{ vars.mass }} kg</strong>, rotating at
+          <strong>{{ vars.speed_rpm }} rpm</strong> (<strong
+            >{{ vars.rotation_direction }}</strong
+          >) <em>(looking from the stern)</em>.<br />
+          Radius of gyration = <strong>{{ vars.gyration_radius }} m</strong>.
+        </p>
+
+        <p>
+          <b>Scenario 1:</b> Steering
+          <strong>{{ vars.turn_direction }}</strong> in a radius of
+          <strong>{{ vars.curvature_radius }} m</strong> at
+          <strong>{{ vars.velocity_kph }} km/hr</strong>.<br />
+          <b>Scenario 2:</b> Pitching at
+          <strong>{{ vars.pitching_angle }}°</strong> with a period of
+          <strong>{{ vars.pitching_period }} s</strong> (<strong
+            >{{ vars.pitching_direction }}</strong
+          >).
+        </p>
+
+        {% if feedback %}
+        <div class="alert alert-info">{{ feedback }}</div>
+
+        <div class="steps">
+          <h5>Solution Steps:</h5>
+          <ul>
+            {% for s in steps %}
+            <li>{{ s }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+
+        <div class="text-center mt-3">
+          <a
+            href="{% if user.role in ['admin', 'super_admin'] %}{{ url_for('admin_assignment_view') }}{% else %}{{ url_for('student_dashboard') }}{% endif %}"
+            class="btn btn-primary w-100"
+          >
+            Back to Dashboard
+          </a>
+        </div>
+
+        {% else %}
+        <!-- Check if user has exceeded attempts -->
+        {% if user and user.p4_attempts >= 2 and user.role not in ['admin',
+        'super_admin'] %}
+        <div class="alert alert-warning">
+          <h4>Maximum Attempts Reached</h4>
+          <p>
+            You have used all your attempts ({{ user.p4_attempts }}/2) for this
+            problem.
+          </p>
+          <p>Your best score: {{ user.p4_score }} points</p>
+          {% if steps %}
+          <div class="steps mt-3">
+            <h5>Solution Steps:</h5>
+            <ul>
+              {% for s in steps %}
+              <li>{{ s }}</li>
+              {% endfor %}
+            </ul>
+          </div>
+          {% endif %}
+          <a
+            href="{% if user.role in ['admin', 'super_admin'] %}{{ url_for('admin_assignment_view') }}{% else %}{{ url_for('student_dashboard') }}{% endif %}"
+            class="btn btn-primary"
+            >Back to Dashboard</a
+          >
+        </div>
+        {% else %}
+        <!-- Show form only if attempts available -->
+        {% if user %}
+        <div class="alert alert-info">
+          Attempts used: {{ user.p4_attempts }}/2 | Current score: {{
+          user.p4_score }} points
+        </div>
+        {% endif %}
+        <form method="POST">
+          <h3 class="mt-4">Steering</h3>
+          <div class="mb-3">
+            <label for="Answer_steering" class="form-label"
+              >Gyroscopic Couple (Nm):</label
+            >
+            <input
+              type="text"
+              class="form-control"
+              name="Answer_steering"
+              id="Answer_steering"
+              required
+            />
+          </div>
+          <div class="mb-3">
+            <label for="Effect_steering" class="form-label">Effect:</label>
+            <select
+              class="form-select"
+              name="Effect_steering"
+              id="Effect_steering"
+              required
+            >
+              <option value="">-- Select Effect --</option>
+              <option value="raise the bow and dip the stern">
+                Raise the Bow and Dip the Stern
+              </option>
+              <option value="dip the bow and raise the stern">
+                Dip the Bow and Raise the Stern
+              </option>
+            </select>
+          </div>
+
+          <h3 class="mt-4">Pitching</h3>
+          <div class="mb-3">
+            <label for="Answer_pitching" class="form-label"
+              >Gyroscopic Couple (Nm):</label
+            >
+            <input
+              type="text"
+              class="form-control"
+              name="Answer_pitching"
+              id="Answer_pitching"
+              required
+            />
+          </div>
+          <div class="mb-3">
+            <label for="Effect_pitching" class="form-label">Effect:</label>
+            <select
+              class="form-select"
+              name="Effect_pitching"
+              id="Effect_pitching"
+              required
+            >
+              <option value="">-- Select Effect --</option>
+              <option value="ship turning starboard side">
+                Ship Turning Starboard Side
+              </option>
+              <option value="ship turning port side">
+                Ship Turning Port Side
+              </option>
+            </select>
+          </div>
+
+          <div class="text-center mt-4">
+            <button type="submit" class="btn btn-success">Submit Answer</button>
+          </div>
+        </form>
+        {% endif %} {% endif %}
+      </div>
+    </div>
+
+    <!-- Include celebration animation if perfect first attempt -->
+    {% if show_celebration %} {% include 'celebration.html' %} {% endif %}
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  </body>
+  {% if user.role == 'student' %}
+  {% set guard_form_selector = 'form' %}
+  {% set guard_context_label = 'assignment' %}
+  {% include '_strict_tab_open_guard.html' %}
+  {% endif %}
+</html>

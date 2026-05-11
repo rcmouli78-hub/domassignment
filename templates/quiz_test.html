@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Quiz Test</title>
+  </head>
+  <body>
+    <h1>Quiz Management Test Page</h1>
+    <p>This is a simple test page to verify template rendering works.</p>
+    <p>Questions: {{ questions|length if questions else 0 }}</p>
+    <p>Quiz tables exist: {{ quiz_tables_exist }}</p>
+    <a href="{{ url_for('admin_dashboard') }}">Back to Dashboard</a>
+  </body>
+</html>

@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Quiz Question Management - KDM LAB</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <style>
+        .card {
+            border-radius: 15px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.15);
+        }
+        .btn-gradient {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            color: white;
+        }
+        .btn-gradient:hover {
+            background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+            color: white;
+        }
+        .question-card {
+            border: 1px solid #e3e6ea;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            transition: all 0.3s ease;
+        }
+        .question-card:hover {
+            border-color: #007bff;
+            box-shadow: 0 4px 15px rgba(0,123,255,0.1);
+        }
+        .correct-answer {
+            background-color: #d4edda;
+            font-weight: bold;
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="container mt-3">
+        {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    <div class="container py-4">
+        <div class="card">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h4 class="mb-0">
+                    <i class="fas fa-edit me-2"></i>Quiz Question Management
+                </h4>
+                <span class="badge bg-light text-dark fs-6">
+                    Total Questions: {{ questions.total }}
+                </span>
+            </div>
+            <div class="card-body">
+                <!-- Action Buttons -->
+                <div class="mb-4">
+                    <a href="{{ url_for('kdm_lab_add_quiz_question') }}" class="btn btn-success me-2">
+                        <i class="fas fa-plus me-2"></i>Add New Question
+                    </a>
+                    <a href="{{ url_for('kdm_lab_upload_quiz_questions') }}" class="btn btn-primary me-2">
+                        <i class="fas fa-upload me-2"></i>Upload CSV File
+                    </a>
+                    <a href="{{ url_for('kdm_lab_admin_dashboard') }}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+                    </a>
+                </div>
+
+                {% if questions.items %}
+                <!-- Questions List -->
+                {% for question in questions.items %}
+                <div class="question-card p-3">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="d-flex align-items-start mb-2">
+                                <span class="badge bg-secondary me-2">{{ question.slno or 'N/A' }}</span>
+                                <h6 class="mb-1">{{ question.question[:100] }}{% if question.question|length > 100 %}...{% endif %}</h6>
+                            </div>
+                            
+                            <div class="row mt-3">
+                                <div class="col-md-6">
+                                    <small class="text-muted">A.</small> 
+                                    <span {% if question.correct_answer == 'A' %}class="correct-answer"{% endif %}>
+                                        {{ question.option_a[:50] }}{% if question.option_a|length > 50 %}...{% endif %}
+                                    </span>
+                                </div>
+                                <div class="col-md-6">
+                                    <small class="text-muted">B.</small>
+                                    <span {% if question.correct_answer == 'B' %}class="correct-answer"{% endif %}>
+                                        {{ question.option_b[:50] }}{% if question.option_b|length > 50 %}...{% endif %}
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="row mt-2">
+                                <div class="col-md-6">
+                                    <small class="text-muted">C.</small>
+                                    <span {% if question.correct_answer == 'C' %}class="correct-answer"{% endif %}>
+                                        {{ question.option_c[:50] }}{% if question.option_c|length > 50 %}...{% endif %}
+                                    </span>
+                                </div>
+                                <div class="col-md-6">
+                                    <small class="text-muted">D.</small>
+                                    <span {% if question.correct_answer == 'D' %}class="correct-answer"{% endif %}>
+                                        {{ question.option_d[:50] }}{% if question.option_d|length > 50 %}...{% endif %}
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-2">
+                                <small class="text-success">
+                                    <i class="fas fa-check-circle me-1"></i>
+                                    Correct Answer: <strong>{{ question.correct_answer }}</strong>
+                                </small>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-4 text-end">
+                            <small class="text-muted d-block mb-3">
+                                Added: {{ question.created_at.strftime('%Y-%m-%d %H:%M') if question.created_at else 'Unknown' }}
+                            </small>
+                            
+                            <div class="btn-group-vertical w-100">
+                                <a href="{{ url_for('kdm_lab_edit_quiz_question', question_id=question.id) }}" 
+                                   class="btn btn-outline-primary btn-sm mb-2">
+                                    <i class="fas fa-edit me-1"></i>Edit
+                                </a>
+                                <form method="POST" action="{{ url_for('kdm_lab_delete_quiz_question', question_id=question.id) }}" 
+                                      style="display: inline;"
+                                      onsubmit="return confirm('Are you sure you want to delete this question? This action cannot be undone.');">
+                                    <button type="submit" class="btn btn-outline-danger btn-sm w-100">
+                                        <i class="fas fa-trash me-1"></i>Delete
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+
+                <!-- Pagination -->
+                {% if questions.pages > 1 %}
+                <nav aria-label="Questions pagination" class="mt-4">
+                    <ul class="pagination justify-content-center">
+                        {% if questions.has_prev %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('kdm_lab_quiz_question_management', page=questions.prev_num) }}">
+                                <i class="fas fa-chevron-left"></i> Previous
+                            </a>
+                        </li>
+                        {% endif %}
+                        
+                        {% for page_num in questions.iter_pages() %}
+                            {% if page_num %}
+                                {% if page_num != questions.page %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('kdm_lab_quiz_question_management', page=page_num) }}">
+                                        {{ page_num }}
+                                    </a>
+                                </li>
+                                {% else %}
+                                <li class="page-item active">
+                                    <span class="page-link">{{ page_num }}</span>
+                                </li>
+                                {% endif %}
+                            {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link">...</span>
+                            </li>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if questions.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('kdm_lab_quiz_question_management', page=questions.next_num) }}">
+                                Next <i class="fas fa-chevron-right"></i>
+                            </a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+                
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-question-circle fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">No questions found</h5>
+                    <p class="text-muted">Upload a CSV file or add questions manually to get started.</p>
+                    <a href="{{ url_for('kdm_lab_add_quiz_question') }}" class="btn btn-primary me-2">
+                        <i class="fas fa-plus me-2"></i>Add First Question
+                    </a>
+                    <a href="{{ url_for('kdm_lab_upload_quiz_questions') }}" class="btn btn-success">
+                        <i class="fas fa-upload me-2"></i>Upload CSV File
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

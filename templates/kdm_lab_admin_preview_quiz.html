@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Preview Quiz - KDM LAB Admin</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+    />
+    <style>
+      .quiz-container {
+        max-width: 800px;
+        margin: 0 auto;
+      }
+      .question-card {
+        border-radius: 15px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        margin-bottom: 20px;
+      }
+      .option-card {
+        border: 2px solid #e9ecef;
+        border-radius: 10px;
+        padding: 15px;
+        margin: 10px 0;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+      .option-card:hover {
+        border-color: #007bff;
+        background-color: #f8f9fa;
+      }
+      .option-card input[type="radio"]:checked + label {
+        background-color: #007bff;
+        color: white;
+        border-radius: 5px;
+        padding: 5px 10px;
+      }
+      .preview-badge {
+        background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+        color: white;
+        padding: 10px 20px;
+        border-radius: 25px;
+        font-size: 1.1em;
+        font-weight: bold;
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 1000;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+      }
+      .submit-btn {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        color: white;
+        padding: 12px 30px;
+        font-size: 1.1em;
+        border-radius: 25px;
+      }
+      .submit-btn:hover {
+        background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+        color: white;
+      }
+    </style>
+  </head>
+  <body class="bg-light">
+    <div class="preview-badge">
+      <i class="fas fa-eye me-2"></i>
+      ADMIN PREVIEW MODE
+    </div>
+
+    <div class="container py-4">
+      <div class="quiz-container">
+        <div class="card question-card">
+          <div class="card-header bg-info text-white text-center">
+            <h3 class="mb-0">
+              <i class="fas fa-clipboard-question me-2"></i>KDM Lab Internal
+              Quiz - Admin Preview
+            </h3>
+            <p class="mb-0 mt-2">
+              Questions: {{ quiz_questions|length }} | Each Question: 1 mark |
+              <strong>Note:</strong> This is a preview - results will not be
+              saved
+            </p>
+          </div>
+        </div>
+
+        <div class="alert alert-info">
+          <i class="fas fa-info-circle me-2"></i>
+          <strong>Admin Preview Mode:</strong> You can take this quiz multiple
+          times to test it. Student results are limited to 2 attempts, but admin
+          previews are unlimited.
+        </div>
+
+        <form
+          method="POST"
+          action="{{ url_for('kdm_lab_admin_submit_preview') }}"
+          id="preview-form"
+        >
+          {% for question in quiz_questions %}
+          <div class="card question-card">
+            <div class="card-body">
+              <h5 class="card-title">
+                <span class="badge bg-secondary me-2">{{ loop.index }}</span>
+                {{ question.question }}
+              </h5>
+
+              <div class="mt-3">
+                <div class="option-card">
+                  <input
+                    type="radio"
+                    class="form-check-input"
+                    id="q{{ question.id }}_a"
+                    name="question_{{ question.id }}"
+                    value="A"
+                  />
+                  <label
+                    class="form-check-label ms-2"
+                    for="q{{ question.id }}_a"
+                  >
+                    <strong>A.</strong> {{ question.option_a }}
+                  </label>
+                </div>
+
+                <div class="option-card">
+                  <input
+                    type="radio"
+                    class="form-check-input"
+                    id="q{{ question.id }}_b"
+                    name="question_{{ question.id }}"
+                    value="B"
+                  />
+                  <label
+                    class="form-check-label ms-2"
+                    for="q{{ question.id }}_b"
+                  >
+                    <strong>B.</strong> {{ question.option_b }}
+                  </label>
+                </div>
+
+                <div class="option-card">
+                  <input
+                    type="radio"
+                    class="form-check-input"
+                    id="q{{ question.id }}_c"
+                    name="question_{{ question.id }}"
+                    value="C"
+                  />
+                  <label
+                    class="form-check-label ms-2"
+                    for="q{{ question.id }}_c"
+                  >
+                    <strong>C.</strong> {{ question.option_c }}
+                  </label>
+                </div>
+
+                <div class="option-card">
+                  <input
+                    type="radio"
+                    class="form-check-input"
+                    id="q{{ question.id }}_d"
+                    name="question_{{ question.id }}"
+                    value="D"
+                  />
+                  <label
+                    class="form-check-label ms-2"
+                    for="q{{ question.id }}_d"
+                  >
+                    <strong>D.</strong> {{ question.option_d }}
+                  </label>
+                </div>
+              </div>
+
+              <!-- Show correct answer for admin -->
+              <div class="mt-3 p-2 bg-success bg-opacity-10 border border-success rounded">
+                <small class="text-success">
+                  <i class="fas fa-key me-1"></i>
+                  <strong>Correct Answer:</strong> {{ question.correct_answer }}. 
+                  {% if question.correct_answer == 'A' %}{{ question.option_a }}
+                  {% elif question.correct_answer == 'B' %}{{ question.option_b }}
+                  {% elif question.correct_answer == 'C' %}{{ question.option_c }}
+                  {% elif question.correct_answer == 'D' %}{{ question.option_d }}
+                  {% endif %}
+                </small>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+
+          <div class="text-center mt-4 mb-4">
+            <button type="submit" class="submit-btn me-3">
+              <i class="fas fa-check me-2"></i>Submit Preview
+            </button>
+            <a
+              href="{{ url_for('kdm_lab_admin_dashboard') }}"
+              class="btn btn-secondary"
+            >
+              <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+            </a>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  </body>
+</html>

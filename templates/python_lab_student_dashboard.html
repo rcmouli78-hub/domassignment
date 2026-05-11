@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Python Programming Lab - Student Dashboard</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+    />
+    <!-- Google Fonts -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        font-family: "Poppins", sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        position: relative;
+      }
+
+      body::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: radial-gradient(
+            circle at 20% 50%,
+            rgba(102, 126, 234, 0.3) 0%,
+            transparent 50%
+          ),
+          radial-gradient(
+            circle at 80% 20%,
+            rgba(118, 75, 162, 0.3) 0%,
+            transparent 50%
+          ),
+          radial-gradient(
+            circle at 40% 80%,
+            rgba(116, 185, 255, 0.3) 0%,
+            transparent 50%
+          );
+        pointer-events: none;
+      }
+
+      .main-container {
+        position: relative;
+        z-index: 1;
+        padding: 2rem 0;
+      }
+
+      .dashboard-header {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border-radius: 20px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        position: relative;
+        overflow: hidden;
+      }
+
+      .dashboard-header::before {
+        content: "";
+        position: absolute;
+        top: -50px;
+        right: -50px;
+        width: 200px;
+        height: 200px;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        opacity: 0.1;
+        border-radius: 50%;
+      }
+
+      .dashboard-title {
+        color: #2c3e50;
+        font-weight: 700;
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+        position: relative;
+        z-index: 1;
+      }
+
+      .dashboard-subtitle {
+        color: #34495e;
+        font-weight: 500;
+        font-size: 1.1rem;
+        margin-bottom: 1.5rem;
+        position: relative;
+        z-index: 1;
+      }
+
+      .nav-section {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border-radius: 20px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+      }
+
+      .section-title {
+        color: #2c3e50;
+        font-weight: 600;
+        font-size: 1.3rem;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+      }
+
+      .section-title i {
+        margin-right: 0.5rem;
+        color: #667eea;
+      }
+
+      .nav-btn {
+        transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        border: none;
+        border-radius: 15px;
+        padding: 1rem 1.5rem;
+        font-weight: 600;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .nav-btn::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          rgba(255, 255, 255, 0.2),
+          transparent
+        );
+        transition: left 0.5s;
+      }
+
+      .nav-btn:hover::before {
+        left: 100%;
+      }
+
+      .nav-btn:hover {
+        transform: translateY(-3px);
+      }
+
+      .stats-card {
+        background: linear-gradient(135deg, #00b894, #00cec9);
+        color: white;
+        border-radius: 20px;
+        padding: 2rem;
+        box-shadow: 0 15px 35px rgba(0, 184, 148, 0.3);
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .stats-card::before {
+        content: "";
+        position: absolute;
+        top: -30px;
+        right: -30px;
+        width: 150px;
+        height: 150px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+      }
+
+      .stats-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 20px 45px rgba(0, 184, 148, 0.4);
+      }
+
+      .quiz-card {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+        border-radius: 20px;
+        padding: 2rem;
+        box-shadow: 0 15px 35px rgba(102, 126, 234, 0.3);
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .quiz-card::before {
+        content: "";
+        position: absolute;
+        top: -40px;
+        left: -40px;
+        width: 180px;
+        height: 180px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+      }
+
+      .quiz-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 20px 45px rgba(102, 126, 234, 0.4);
+      }
+
+      .btn-take-quiz {
+        background: linear-gradient(135deg, #fd79a8, #e84393);
+        border: none;
+        color: white;
+        font-size: 1.2rem;
+        font-weight: 600;
+        padding: 1rem 2.5rem;
+        border-radius: 50px;
+        box-shadow: 0 8px 25px rgba(253, 121, 168, 0.4);
+        transition: all 0.3s ease;
+        position: relative;
+        z-index: 2;
+      }
+
+      .btn-take-quiz:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 12px 35px rgba(253, 121, 168, 0.6);
+        color: white;
+      }
+
+      .btn-take-quiz:disabled {
+        background: linear-gradient(135deg, #6c757d, #5a6268);
+        box-shadow: none;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      .attempt-card {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        transition: all 0.3s ease;
+        border-left: 4px solid #667eea;
+      }
+
+      .attempt-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 12px 35px rgba(102, 126, 234, 0.2);
+      }
+
+      .module-card {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border-radius: 15px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        transition: all 0.3s ease;
+        height: 100%;
+        overflow: hidden;
+      }
+
+      .module-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 30px rgba(102, 126, 234, 0.2);
+      }
+
+      .module-header {
+        background: linear-gradient(135deg, #a29bfe, #6c5ce7);
+        color: white;
+        padding: 1rem;
+        margin: -1px -1px 1rem -1px;
+      }
+
+      .experiment-card {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border-radius: 15px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        transition: all 0.3s ease;
+        height: 100%;
+        overflow: hidden;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+      }
+
+      .experiment-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 30px rgba(116, 185, 255, 0.2);
+      }
+
+      .experiment-header {
+        background: linear-gradient(135deg, #74b9ff, #0984e3);
+        color: white;
+        padding: 1rem;
+        margin: -1px -1px 1rem -1px;
+      }
+
+      .experiment-btn {
+        transition: all 0.3s ease;
+        border: none;
+        box-shadow: 0 4px 15px rgba(116, 185, 255, 0.3);
+      }
+
+      .experiment-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(116, 185, 255, 0.4);
+        color: white;
+      }
+
+      .alert-custom {
+        background: linear-gradient(135deg, #ffeaa7, #fdcb6e);
+        border: none;
+        border-radius: 15px;
+        color: #2d3436;
+        font-weight: 500;
+      }
+
+      .badge-custom {
+        padding: 0.5rem 0.75rem;
+        border-radius: 20px;
+        font-weight: 500;
+      }
+
+      /* Responsive adjustments */
+      @media (max-width: 768px) {
+        .dashboard-title {
+          font-size: 1.5rem;
+        }
+        
+        .nav-btn {
+          font-size: 0.9rem;
+          padding: 0.75rem 1rem;
+        }
+        
+        .btn-take-quiz {
+          font-size: 1rem;
+          padding: 0.75rem 2rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="main-container">
+      <div class="container">
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %} 
+        {% if messages %}
+        <div class="mb-3">
+          {% for category, message in messages %}
+          <div
+            class="alert alert-custom alert-dismissible fade show"
+            role="alert"
+          >
+            <i class="fas fa-info-circle me-2"></i>{{ message }}
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="alert"
+            ></button>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %} 
+        {% endwith %}
+
+        <!-- Dashboard Header -->
+        <div class="dashboard-header text-center">
+          <h1 class="dashboard-title">
+            <i class="fab fa-python me-3"></i>Python Programming Lab
+          </h1>
+          <p class="dashboard-subtitle">
+            <i class="fas fa-code me-2"></i>Welcome back, {{ user.rollnumber }}! Ready to code?
+          </p>
+          
+          <!-- Navigation Buttons -->
+          <div class="row g-3 justify-content-center" style="position: relative; z-index: 2;">
+            <div class="col-auto">
+              <a
+                href="{{ url_for('student_dashboard') }}"
+                class="btn nav-btn"
+                style="background: linear-gradient(135deg, #a29bfe, #6c5ce7); color: white; box-shadow: 0 6px 15px rgba(162, 155, 254, 0.3);"
+                onmouseover="this.style.boxShadow='0 10px 25px rgba(162, 155, 254, 0.4)'"
+                onmouseout="this.style.boxShadow='0 6px 15px rgba(162, 155, 254, 0.3)'"
+              >
+                <i class="fas fa-arrow-left me-2"></i>Main Dashboard
+              </a>
+            </div>
+            
+            {% if questions_visible_to_students %}
+            <div class="col-auto">
+              <a
+                href="{{ url_for('python_lab_view_all_questions') }}"
+                class="btn nav-btn"
+                style="background: linear-gradient(135deg, #74b9ff, #0984e3); color: white; box-shadow: 0 6px 15px rgba(116, 185, 255, 0.3);"
+                onmouseover="this.style.boxShadow='0 10px 25px rgba(116, 185, 255, 0.4)'"
+                onmouseout="this.style.boxShadow='0 6px 15px rgba(116, 185, 255, 0.3)'"
+              >
+                <i class="fas fa-book me-2"></i>Question Bank
+              </a>
+            </div>
+            {% endif %}
+            
+            <div class="col-auto">
+              <a
+                href="{{ url_for('python_lab_student_consolidated_marks') }}"
+                class="btn nav-btn"
+                style="background: linear-gradient(135deg, #00b894, #00a085); color: white; box-shadow: 0 6px 15px rgba(0, 184, 148, 0.3);"
+                onmouseover="this.style.boxShadow='0 10px 25px rgba(0, 184, 148, 0.4)'"
+                onmouseout="this.style.boxShadow='0 6px 15px rgba(0, 184, 148, 0.3)'"
+              >
+                <i class="fas fa-chart-pie me-2"></i>My Marks
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <div class="row g-4">
+          <!-- Quiz Statistics -->
+          <div class="col-lg-5">
+            <div class="stats-card text-center">
+              <div style="position: relative; z-index: 2;">
+                <h4 class="mb-3">
+                  <i class="fas fa-chart-line me-2"></i>Your Performance Statistics
+                </h4>
+                <div class="row text-center">
+                  <div class="col-12 mb-3">
+                    <div style="font-size: 2.5rem; font-weight: 700;">{{ total_attempts }}</div>
+                    <div style="opacity: 0.9; font-size: 1.1rem;">Total Attempts</div>
+                  </div>
+                  {% if total_attempts > 0 %}
+                  <div class="col-6">
+                    <div style="font-size: 2rem; font-weight: 600;">{{ best_score }}%</div>
+                    <div style="opacity: 0.8;">Best Score</div>
+                  </div>
+                  <div class="col-6">
+                    <div style="font-size: 2rem; font-weight: 600;">{{ "%.1f" | format(avg_score) }}%</div>
+                    <div style="opacity: 0.8;">Average Score</div>
+                  </div>
+                  {% else %}
+                  <div class="col-12">
+                    <p class="mb-0" style="opacity: 0.9; font-size: 1.1rem;">
+                      <i class="fas fa-rocket me-1"></i>Take your first quiz to see statistics!
+                    </p>
+                  </div>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quiz Availability -->
+          <div class="col-lg-7">
+            <div class="quiz-card text-center">
+              <div style="position: relative; z-index: 2;">
+                {% if quiz_available %}
+                <h4 class="mb-3">
+                  <i class="fas fa-clipboard-question me-2"></i>Python Quiz Available!
+                </h4>
+                
+                <!-- Quiz Info -->
+                <div class="row mb-4">
+                  <div class="col-4">
+                    <div style="background: rgba(255,255,255,0.15); border-radius: 10px; padding: 1rem;">
+                      <i class="fas fa-clock d-block mb-1" style="font-size: 1.5rem;"></i>
+                      <strong>{{ quiz_settings.quiz_duration if quiz_settings else '60' }}</strong>
+                      <small class="d-block">minutes</small>
+                    </div>
+                  </div>
+                  <div class="col-4">
+                    <div style="background: rgba(255,255,255,0.15); border-radius: 10px; padding: 1rem;">
+                      <i class="fas fa-question-circle d-block mb-1" style="font-size: 1.5rem;"></i>
+                      <strong>{{ (quiz_settings.questions_per_module * 5) if quiz_settings else '20' }}</strong>
+                      <small class="d-block">total questions</small>
+                    </div>
+                  </div>
+                  <div class="col-4">
+                    <div style="background: rgba(255,255,255,0.15); border-radius: 10px; padding: 1rem;">
+                      <i class="fas fa-redo d-block mb-1" style="font-size: 1.5rem;"></i>
+                      <strong>{{ remaining_attempts }}</strong>
+                      <small class="d-block">remaining</small>
+                    </div>
+                  </div>
+                </div>
+
+                {% if can_take_quiz %}
+                <a
+                  href="{{ url_for('python_lab_take_quiz') }}"
+                  class="btn btn-take-quiz btn-lg"
+                  onclick="return confirm('Are you ready to start the quiz? You have {{ quiz_settings.quiz_duration if quiz_settings else '60' }} minutes to complete it.')"
+                >
+                  <i class="fas fa-play me-2"></i>Start Python Quiz
+                </a>
+                {% else %}
+                  {% if remaining_attempts <= 0 %}
+                  <button class="btn btn-take-quiz btn-lg" disabled>
+                    <i class="fas fa-ban me-2"></i>No Attempts Left
+                  </button>
+                  <p class="mt-3 mb-0" style="opacity: 0.9;">
+                    <small>You have used all {{ quiz_settings.max_attempts }} attempts.</small>
+                  </p>
+                  {% else %}
+                  <button class="btn btn-take-quiz btn-lg" disabled>
+                    <i class="fas fa-lock me-2"></i>Quiz Locked
+                  </button>
+                  {% endif %}
+                {% endif %}
+                
+                {% else %}
+                <h4 class="mb-3">
+                  <i class="fas fa-lock me-2"></i>Quiz Not Available
+                </h4>
+                <p class="mb-0" style="opacity: 0.9; font-size: 1.1rem;">
+                  The quiz has not been released yet. Please check back later or contact your instructor.
+                </p>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quiz Attempts History -->
+        <div class="nav-section">
+          <h4 class="section-title">
+            <i class="fas fa-history"></i>Quiz Attempts History
+          </h4>
+          
+          {% if best_attempt %}
+          <div class="row g-3">
+            <div class="col-12">
+              <div class="attempt-card">
+                <div class="row align-items-center">
+                  <div class="col-md-6">
+                    <h5 class="mb-2" style="color: #2c3e50;">
+                      <i class="fas fa-clipboard-list me-2"></i>Best Attempt
+                      <span class="badge badge-custom bg-warning ms-2">Best</span>
+                    </h5>
+                    <p class="text-muted mb-0">
+                      <i class="fas fa-calendar me-1"></i>
+                      {{ best_attempt.started_at.strftime('%B %d, %Y at %I:%M %p') }}
+                    </p>
+                  </div>
+                  <div class="col-md-3 text-center">
+                    <div class="mb-2">
+                      <span class="badge badge-custom {% if best_attempt.score >= 80 %}bg-success{% elif best_attempt.score >= 60 %}bg-warning{% else %}bg-danger{% endif %}" 
+                            style="font-size: 1.2rem; padding: 0.75rem 1.25rem;">
+                        {{ best_attempt.score }}%
+                      </span>
+                    </div>
+                    <small class="text-muted">
+                      {{ best_attempt.score * best_attempt.total_questions // 100 }}/{{ best_attempt.total_questions }} correct
+                    </small>
+                  </div>
+                  <div class="col-md-3 text-end">
+                    <a
+                      href="{{ url_for('python_lab_view_attempt_result', attempt_id=best_attempt.id) }}"
+                      class="btn nav-btn"
+                      style="background: linear-gradient(135deg, #667eea, #764ba2); color: white; box-shadow: 0 6px 15px rgba(102, 126, 234, 0.3);"
+                      onmouseover="this.style.boxShadow='0 10px 25px rgba(102, 126, 234, 0.4)'"
+                      onmouseout="this.style.boxShadow='0 6px 15px rgba(102, 126, 234, 0.3)'"
+                    >
+                      <i class="fas fa-eye me-1"></i>View Details
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          {% else %}
+          <div class="text-center py-5">
+            <div style="color: #667eea; margin-bottom: 1rem;">
+              <i class="fab fa-python" style="font-size: 4rem; opacity: 0.3;"></i>
+            </div>
+            <h4 style="color: #2c3e50; margin-bottom: 0.5rem;">No Quiz Attempts Yet</h4>
+            <p class="text-muted mb-0" style="font-size: 1.1rem;">
+              Start your first Python quiz to see your progress and track your improvement!
+            </p>
+          </div>
+          {% endif %}
+        </div>
+
+        <!-- Python Lab Experiments Section -->
+        <div class="nav-section">
+          <h4 class="section-title">
+            <i class="fas fa-flask"></i>Python Lab Experiments
+          </h4>
+          
+          {% if available_experiments %}
+          <div class="row g-4 mb-4">
+            {% for experiment in available_experiments %}
+            <div class="col-lg-4 col-md-6">
+              <div class="experiment-card">
+                <!-- Experiment Header -->
+                <div class="experiment-header text-center">
+                  <div style="position: absolute; top: 0.5rem; right: 0.5rem; background: rgba(255,255,255,0.2); border-radius: 50%; width: 35px; height: 35px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.9rem;">
+                    {{ experiment.experiment_number }}
+                  </div>
+                  <h5 class="mb-0" style="font-weight: 600; padding-right: 2.5rem;">
+                    {{ experiment.title }}
+                  </h5>
+                </div>
+
+                <!-- Experiment Body -->
+                <div class="p-3">
+                  <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div class="text-center">
+                      <div style="color: #667eea; font-weight: 600; font-size: 1.1rem;">{{ experiment_criteria_count.get(experiment.id, 0) }}</div>
+                      <small class="text-muted">Criteria</small>
+                    </div>
+                    <div class="text-center">
+                      {% set attempt = student_experiment_attempts.get(experiment.id) %}
+                      {% if attempt %}
+                      <div style="color: #00b894; font-weight: 600; font-size: 1.1rem;">{{ attempt.attempt_count }}</div>
+                      <small class="text-muted">Attempts</small>
+                      {% else %}
+                      <div style="color: #ddd; font-weight: 600; font-size: 1.1rem;">0</div>
+                      <small class="text-muted">Attempts</small>
+                      {% endif %}
+                    </div>
+                    <div class="text-center">
+                      {% if experiment.id in student_experiment_marks %}
+                      {% set marks = student_experiment_marks[experiment.id] %}
+                      <div style="color: #fd79a8; font-weight: 600; font-size: 1.1rem;">{{ marks.marks_earned }}/{{ marks.max_marks }}</div>
+                      <small class="text-muted">Marks</small>
+                      {% else %}
+                      <div style="color: #ddd; font-weight: 600; font-size: 1.1rem;">-</div>
+                      <small class="text-muted">Marks</small>
+                      {% endif %}
+                    </div>
+                  </div>
+                  
+                  <div class="d-grid gap-2">
+                    <a
+                      href="{{ url_for('attempt_python_lab_experiment', experiment_id=experiment.id) }}"
+                      class="btn experiment-btn"
+                      style="background: linear-gradient(135deg, #74b9ff, #0984e3); color: white; border-radius: 10px; font-weight: 600; padding: 0.75rem;"
+                    >
+                      <i class="fas fa-play me-2"></i>Take Experiment
+                    </a>
+                    {% if experiment.id in student_experiment_scores %}
+                    <a
+                      href="{{ url_for('view_my_python_lab_submission', experiment_id=experiment.id) }}"
+                      class="btn"
+                      style="background: linear-gradient(135deg, #a29bfe, #6c5ce7); color: white; border-radius: 10px; font-weight: 500; padding: 0.5rem; font-size: 0.9rem;"
+                    >
+                      <i class="fas fa-eye me-1"></i>View Submission
+                    </a>
+                    {% endif %}
+                  </div>
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+          <div class="text-center py-5">
+            <div style="color: #667eea; margin-bottom: 1rem;">
+              <i class="fas fa-flask" style="font-size: 4rem; opacity: 0.3;"></i>
+            </div>
+            <h4 style="color: #2c3e50; margin-bottom: 0.5rem;">No Experiments Available</h4>
+            <p class="text-muted mb-0" style="font-size: 1.1rem;">
+              Experiments will appear here once your instructor releases them. Check back later!
+            </p>
+          </div>
+          {% endif %}
+        </div>
+
+        <!-- Programming Modules Overview -->
+        {% if quiz_settings %}
+        <div class="nav-section">
+          <h4 class="section-title">
+            <i class="fab fa-python"></i>Programming Modules Covered
+          </h4>
+          
+          <div class="row g-4">
+            {% for module_num, module_name in modules.items() %}
+            <div class="col-lg-4 col-md-6">
+              <div class="module-card">
+                <!-- Module Header -->
+                <div class="module-header text-center">
+                  <div style="position: absolute; top: 0.5rem; right: 0.5rem; background: rgba(255,255,255,0.2); border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.8rem;">
+                    {{ module_num }}
+                  </div>
+                  <h5 class="mb-0" style="font-weight: 600; padding-right: 2rem;">
+                    Module {{ module_num }}
+                  </h5>
+                </div>
+
+                <!-- Module Body -->
+                <div class="p-3">
+                  <h6 class="mb-3" style="color: #2c3e50; font-weight: 600;">
+                    {{ module_name }}
+                  </h6>
+                  
+                  <div class="d-flex justify-content-between align-items-center">
+                    <div class="text-center">
+                      <div style="color: #667eea; font-weight: 600; font-size: 1.1rem;">{{ quiz_settings.questions_per_module if quiz_settings else '4' }}</div>
+                      <small class="text-muted">Questions</small>
+                    </div>
+                    <div class="text-center">
+                      <div style="color: #667eea; font-weight: 600; font-size: 1.1rem;">{{ (100 // 5) }}%</div>
+                      <small class="text-muted">Weight</small>
+                    </div>
+                    <div class="text-center">
+                      <i class="fas fa-code" style="color: #667eea; font-size: 1.5rem;"></i>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- Footer Section -->
+        <div class="nav-section text-center">
+          <div class="row align-items-center">
+            <div class="col-md-8">
+              <p class="text-muted mb-0">
+                <i class="fab fa-python me-2"></i><strong>Python Programming Lab Session</strong>
+                <small class="d-block mt-1">Master Python concepts through interactive quizzes and practice</small>
+              </p>
+            </div>
+            <div class="col-md-4 mt-3 mt-md-0">
+              <a href="{{ url_for('logout') }}" class="btn nav-btn" 
+                 style="background: linear-gradient(135deg, #fd79a8, #e84393); color: white; box-shadow: 0 6px 15px rgba(253, 121, 168, 0.3);"
+                 onmouseover="this.style.boxShadow='0 10px 25px rgba(253, 121, 168, 0.4)'"
+                 onmouseout="this.style.boxShadow='0 6px 15px rgba(253, 121, 168, 0.3)'">
+                <i class="fas fa-sign-out-alt me-2"></i>Logout
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  </body>
+</html>

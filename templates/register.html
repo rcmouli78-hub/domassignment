@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Register</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+    />
+    <style>
+      body {
+        background: #f8f9fa;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        padding: 20px;
+      }
+
+      .card {
+        max-width: 550px;
+        width: 100%;
+        border-radius: 10px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        margin-top: 10px;
+      }
+
+      .card-header {
+        background-color: #0d6efd;
+        color: white;
+        font-size: 1.25rem;
+        font-weight: bold;
+        text-align: center;
+        border-radius: 10px 10px 0 0;
+      }
+
+      /* Make alerts wrap nicely */
+      .alert {
+        word-wrap: break-word;
+        white-space: normal;
+      }
+
+      .password-warning {
+        background: linear-gradient(135deg, #fff3cd, #ffeeba);
+        border: 2px solid #ffc107;
+        border-radius: 10px;
+        box-shadow: 0 2px 8px rgba(255, 193, 7, 0.2);
+      }
+
+      .password-warning .alert-heading {
+        color: #856404;
+        font-weight: 700;
+      }
+
+      .warning-icon {
+        color: #ffc107;
+        font-size: 1.2rem;
+      }
+    </style>
+  </head>
+
+  <body>
+
+    <!-- ✅ Flash messages appear ABOVE card -->
+    <div class="container" style="max-width: 550px;">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <div class="mt-2">
+            {% for category, msg in messages %}
+              <div
+                class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show"
+                style="word-wrap: break-word; white-space: normal;"
+                role="alert"
+              >
+                {{ msg }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+              </div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+    </div>
+
+    <div class="card">
+      <div class="card-header">Register</div>
+
+      <div class="card-body">
+        <!-- Password Security Warning -->
+        <div class="alert alert-warning password-warning border-0 mb-4" role="alert">
+          <div class="d-flex">
+            <i class="fas fa-exclamation-triangle warning-icon me-3 mt-1"></i>
+            <div>
+              <h6 class="alert-heading mb-2">⚠️ Password Security Notice</h6>
+              <p class="mb-2">
+                <strong>Please use a simple password for this educational platform.</strong>
+              </p>
+              <p class="mb-0">
+                <small>
+                  ⚠️ <strong>Important:</strong> Passwords are stored without encryption.<br />
+                  🔒 <strong>Do NOT use</strong> your bank or email passwords.<br />
+                  💡 Use something like <strong>password123</strong> or <strong>student2025</strong>.
+                </small>
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <form method="POST">
+          <div class="mb-3">
+            <label for="rollnumber" class="form-label">Roll Number</label>
+            <input type="text" class="form-control" id="rollnumber" name="rollnumber" required />
+          </div>
+
+          <div class="mb-3">
+            <label for="password" class="form-label">Password</label>
+            <input type="password" class="form-control" id="password" name="password" required />
+          </div>
+
+          <div class="mb-3">
+            <label for="confirm_password" class="form-label">Confirm Password</label>
+            <input
+              type="password"
+              class="form-control"
+              id="confirm_password"
+              name="confirm_password"
+              required
+            />
+          </div>
+
+          <div class="mb-3">
+            <label for="email" class="form-label">Email</label>
+            <input type="email" class="form-control" id="email" name="email" />
+          </div>
+
+          <div class="mb-3">
+            <label for="phonenumber" class="form-label">Phone</label>
+            <input type="text" class="form-control" id="phonenumber" name="phonenumber" />
+          </div>
+
+          <button type="submit" class="btn btn-primary w-100">Register</button>
+        </form>
+      </div>
+
+      <div class="card-footer text-center">
+        <small>
+          Already have an account?
+          <a href="{{ url_for('login') }}">Login</a>
+        </small>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  </body>
+</html>

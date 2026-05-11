@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Edit User</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+<div class="container py-5">
+    <div class="card shadow-lg p-4">
+        <h2 class="text-center text-primary">Edit User</h2>
+
+        <form method="POST">
+            <div class="mb-3">
+                <label class="form-label">Roll Number</label>
+                <input type="text" name="rollnumber" class="form-control" value="{{ user.rollnumber }}" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Email</label>
+                <input type="email" name="email" class="form-control" value="{{ user.email }}">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Phone Number</label>
+                <input type="text" name="phonenumber" class="form-control" value="{{ user.phonenumber }}">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Marks</label>
+                <input type="number" name="marks" class="form-control" value="{{ user.marks }}">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Completed</label>
+                <input type="number" name="completed" class="form-control" value="{{ user.completed }}">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Role</label>
+                {% if current_admin.admin_level == 'super_admin' %}
+                    <!-- Super admin can set any role -->
+                    <select name="role" class="form-select">
+                        <option value="student" {% if user.role == "student" %}selected{% endif %}>Student</option>
+                        <option value="admin" {% if user.role == "admin" %}selected{% endif %}>Admin</option>
+                    </select>
+                {% else %}
+                    <!-- Sub admin can only assign student role -->
+                    <input type="hidden" name="role" value="student">
+                    <input type="text" class="form-control" value="Student" readonly>
+                
+                {% endif %}
+            </div>
+
+            <!-- Problem Scores and Attempts Section -->
+            <h4 class="text-primary mt-4 mb-3">Problem Scores & Attempts</h4>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <h5>Problem 1</h5>
+                    <div class="mb-2">
+                        <label class="form-label">P1 Score</label>
+                        <input type="number" name="p1_score" class="form-control" value="{{ user.p1_score }}" min="0" max="5">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">P1 Attempts</label>
+                        <input type="number" name="p1_attempts" class="form-control" value="{{ user.p1_attempts }}" min="0" max="2">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <h5>Problem 2</h5>
+                    <div class="mb-2">
+                        <label class="form-label">P2 Score</label>
+                        <input type="number" name="p2_score" class="form-control" value="{{ user.p2_score }}" min="0" max="5">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">P2 Attempts</label>
+                        <input type="number" name="p2_attempts" class="form-control" value="{{ user.p2_attempts }}" min="0" max="2">
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <h5>Problem 3</h5>
+                    <div class="mb-2">
+                        <label class="form-label">P3 Score</label>
+                        <input type="number" name="p3_score" class="form-control" value="{{ user.p3_score }}" min="0" max="5">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">P3 Attempts</label>
+                        <input type="number" name="p3_attempts" class="form-control" value="{{ user.p3_attempts }}" min="0" max="2">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <h5>Problem 4</h5>
+                    <div class="mb-2">
+                        <label class="form-label">P4 Score</label>
+                        <input type="number" name="p4_score" class="form-control" value="{{ user.p4_score }}" min="0" max="10">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">P4 Attempts</label>
+                        <input type="number" name="p4_attempts" class="form-control" value="{{ user.p4_attempts }}" min="0" max="2">
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <h5>Problem 5</h5>
+                    <div class="mb-2">
+                        <label class="form-label">P5 Score</label>
+                        <input type="number" name="p5_score" class="form-control" value="{{ user.p5_score }}" min="0" max="10">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">P5 Attempts</label>
+                        <input type="number" name="p5_attempts" class="form-control" value="{{ user.p5_attempts }}" min="0" max="2">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <h5>Problem 6</h5>
+                    <div class="mb-2">
+                        <label class="form-label">P6 Score</label>
+                        <input type="number" name="p6_score" class="form-control" value="{{ user.p6_score }}" min="0" max="10">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">P6 Attempts</label>
+                        <input type="number" name="p6_attempts" class="form-control" value="{{ user.p6_attempts }}" min="0" max="2">
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <h5>Problem 7</h5>
+                    <div class="mb-2">
+                        <label class="form-label">P7 Score</label>
+                        <input type="number" name="p7_score" class="form-control" value="{{ user.p7_score }}" min="0" max="10">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">P7 Attempts</label>
+                        <input type="number" name="p7_attempts" class="form-control" value="{{ user.p7_attempts }}" min="0" max="2">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <h5>Problem 8</h5>
+                    <div class="mb-2">
+                        <label class="form-label">P8 Score</label>
+                        <input type="number" name="p8_score" class="form-control" value="{{ user.p8_score or 0 }}" min="0" max="15">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">P8 Attempts</label>
+                        <input type="number" name="p8_attempts" class="form-control" value="{{ user.p8_attempts or 0 }}" min="0" max="2">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <h5>Problem 9</h5>
+                    <div class="mb-2">
+                        <label class="form-label">P9 Score</label>
+                        <input type="number" name="p9_score" class="form-control" value="{{ user.p9_score or 0 }}" min="0" max="10">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">P9 Attempts</label>
+                        <input type="number" name="p9_attempts" class="form-control" value="{{ user.p9_attempts or 0 }}" min="0" max="2">
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <h5>Problem 10</h5>
+                    <div class="mb-2">
+                        <label class="form-label">P10 Score</label>
+                        <input type="number" name="p10_score" class="form-control" value="{{ user.p10_score or 0 }}" min="0" max="12">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">P10 Attempts</label>
+                        <input type="number" name="p10_attempts" class="form-control" value="{{ user.p10_attempts or 0 }}" min="0" max="2">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <h5>Problem 11</h5>
+                    <div class="mb-2">
+                        <label class="form-label">P11 Score</label>
+                        <input type="number" name="p11_score" class="form-control" value="{{ user.p11_score or 0 }}" min="0" max="10">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">P11 Attempts</label>
+                        <input type="number" name="p11_attempts" class="form-control" value="{{ user.p11_attempts or 0 }}" min="0" max="2">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quiz Scores Section -->
+            <h4 class="text-primary mt-4 mb-3">Quiz Scores</h4>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-2">
+                        <label class="form-label">Quiz Best Score</label>
+                        <input type="number" name="quiz_best_score" class="form-control" value="{{ user.quiz_best_score or 0 }}" min="0">
+                        <div class="form-text">Best score achieved across all quiz attempts</div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-2">
+                        <label class="form-label">Quiz Attempts</label>  
+                        <input type="number" name="quiz_attempts_count" class="form-control" value="{{ user.quiz_attempts_count or 0 }}" min="0" max="2">
+                        <div class="form-text">Number of quiz attempts (max 2)</div>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="mb-3">
+                        <label class="form-label">Total Quiz Points Available</label>
+                        <input type="number" name="quiz_total_points" class="form-control" value="{{ user.quiz_total_points or 0 }}" min="0" readonly>
+                        <div class="form-text">Total points available in the quiz (calculated automatically)</div>
+                    </div>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-success w-100">Save Changes</button>
+        </form>
+
+        <div class="mt-3">
+            <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary">Back to Dashboard</a>
+        </div>
+    </div>
+</div>
+</body>
+</html>

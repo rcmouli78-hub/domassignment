@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Individual Releases - {{ experiment.experiment_name }}</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <style>
+      body {
+        font-family: "Poppins", sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+      }
+
+      .card {
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+      }
+
+      .card-header {
+        background: linear-gradient(45deg, #667eea, #764ba2);
+        color: white;
+        border-radius: 15px 15px 0 0 !important;
+        border: none;
+      }
+
+      .table-responsive {
+        border-radius: 10px;
+        overflow: hidden;
+      }
+
+      .table thead th {
+        background: linear-gradient(45deg, #667eea, #764ba2);
+        color: white;
+        border: none;
+        font-weight: 500;
+      }
+
+      .toggle-switch {
+        position: relative;
+        width: 50px;
+        height: 25px;
+        background-color: #ccc;
+        border-radius: 25px;
+        cursor: pointer;
+        transition: background-color 0.3s;
+      }
+
+      .toggle-switch.active {
+        background-color: #4caf50;
+      }
+
+      .toggle-switch .slider {
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        width: 21px;
+        height: 21px;
+        background-color: white;
+        border-radius: 50%;
+        transition: transform 0.3s;
+      }
+
+      .toggle-switch.active .slider {
+        transform: translateX(25px);
+      }
+
+      .bulk-status {
+        padding: 5px 10px;
+        border-radius: 20px;
+        font-size: 0.85em;
+        font-weight: 500;
+      }
+
+      .bulk-released {
+        background-color: #d4edda;
+        color: #155724;
+      }
+
+      .bulk-locked {
+        background-color: #f8d7da;
+        color: #721c24;
+      }
+
+      .btn-back {
+        background: linear-gradient(45deg, #667eea, #764ba2);
+        border: none;
+        color: white;
+        border-radius: 25px;
+        padding: 8px 20px;
+        transition: transform 0.2s;
+      }
+
+      .btn-back:hover {
+        transform: translateY(-2px);
+        color: white;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container mt-4">
+      <!-- Header -->
+      <div class="row mb-4">
+        <div class="col-12">
+          <div class="d-flex justify-content-between align-items-center">
+            <h2 class="text-white mb-0">
+              <i class="fas fa-users-cog me-2"></i>
+              Individual Releases - {{ experiment.experiment_name }}
+            </h2>
+            <a
+              href="{{ url_for('kdm_lab_admin_dashboard') }}"
+              class="btn btn-back"
+            >
+              <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bulk Release Status -->
+      <div class="row mb-3">
+        <div class="col-12">
+          <div class="card">
+            <div class="card-body">
+              <h6 class="mb-2">Bulk Release Status:</h6>
+              <span
+                class="bulk-status {{ 'bulk-released' if bulk_released else 'bulk-locked' }}"
+              >
+                <i
+                  class="fas {{ 'fa-unlock' if bulk_released else 'fa-lock' }} me-1"
+                ></i>
+                {{ 'Released for All Students' if bulk_released else 'Not
+                Released (Locked)' }}
+              </span>
+              <small class="text-muted d-block mt-2">
+                Individual releases work independently of bulk releases. You can
+                release to individual students even if the experiment is not
+                bulk released.
+              </small>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Students Table -->
+      <div class="row">
+        <div class="col-12">
+          <div class="card">
+            <div class="card-header">
+              <h5 class="mb-0">
+                <i class="fas fa-list me-2"></i>
+                Individual Student Releases ({{ students|length }} students)
+              </h5>
+            </div>
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                  <thead>
+                    <tr>
+                      <th>Roll Number</th>
+                      <th>Access Status</th>
+                      <th>Individual Release</th>
+                      <th>Action</th>
+                      <th><i class="fas fa-undo me-1"></i>Reset</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for student in students %} {% set individual_released =
+                    individual_releases.get(student.id, false) %} {% set
+                    final_access = bulk_released or individual_released %}
+                    <tr>
+                      <td>
+                        <strong>{{ student.rollnumber }}</strong>
+                      </td>
+                      <td>
+                        <span
+                          class="badge {{ 'bg-success' if final_access else 'bg-danger' }}"
+                        >
+                          <i
+                            class="fas {{ 'fa-check-circle' if final_access else 'fa-times-circle' }} me-1"
+                          ></i>
+                          {{ 'Can Access' if final_access else 'Blocked' }}
+                        </span>
+                      </td>
+                      <td>
+                        <span
+                          class="badge {{ 'bg-primary' if individual_released else 'bg-secondary' }}"
+                        >
+                          {{ 'Individually Released' if individual_released else
+                          'Not Released' }}
+                        </span>
+                      </td>
+                      <td>
+                        <div
+                          class="toggle-switch {{ 'active' if individual_released else '' }}"
+                          data-student-id="{{ student.id }}"
+                          data-experiment-id="{{ experiment.id }}"
+                          title="Toggle individual release for {{ student.rollnumber }}"
+                        >
+                          <div class="slider"></div>
+                        </div>
+                      </td>
+                      <td>
+                        <button
+                          class="btn btn-sm btn-danger btn-reset-experiment"
+                          data-student-id="{{ student.id }}"
+                          data-experiment-id="{{ experiment.id }}"
+                          title="Reset attempts and marks for {{ student.rollnumber }}"
+                        >
+                          <i class="fas fa-undo"></i> Reset
+                        </button>
+                      </td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Legend -->
+      <div class="row mt-3">
+        <div class="col-12">
+          <div class="card">
+            <div class="card-body">
+              <h6>Legend:</h6>
+              <div class="row">
+                <div class="col-md-6">
+                  <small class="text-muted">
+                    <i class="fas fa-check-circle text-success me-1"></i>
+                    <strong>Can Access:</strong> Student can access this
+                    experiment (either through bulk release or individual
+                    release)
+                  </small>
+                </div>
+                <div class="col-md-6">
+                  <small class="text-muted">
+                    <i class="fas fa-times-circle text-danger me-1"></i>
+                    <strong>Blocked:</strong> Student cannot access this
+                    experiment
+                  </small>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      // Handle toggle switches
+      document.querySelectorAll('.toggle-switch').forEach(toggle => {
+        toggle.addEventListener('click', function() {
+          const studentId = this.dataset.studentId;
+          const experimentId = this.dataset.experimentId;
+          const currentState = this.classList.contains('active');
+          const newState = !currentState;
+
+          // Toggle the switch immediately for better UX
+          if (newState) {
+            this.classList.add('active');
+          } else {
+            this.classList.remove('active');
+          }
+
+          // Send request to server
+          fetch('/kdm_lab_toggle_individual_release', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              student_id: parseInt(studentId),
+              experiment_id: parseInt(experimentId),
+              is_released: newState
+            })
+          })
+          .then(response => response.json())
+          .then(data => {
+            if (data.success) {
+              // Update the status badges in the same row
+              const row = this.closest('tr');
+              const accessBadge = row.querySelector('td:nth-child(2) .badge');
+              const individualBadge = row.querySelector('td:nth-child(3) .badge');
+
+              // Update individual release badge
+              if (data.is_released) {
+                individualBadge.className = 'badge bg-primary';
+                individualBadge.innerHTML = 'Individually Released';
+              } else {
+                individualBadge.className = 'badge bg-secondary';
+                individualBadge.innerHTML = 'Not Released';
+              }
+
+              // Update access status (considering bulk release)
+              const bulkReleased = {{ bulk_released|lower }};
+              const finalAccess = bulkReleased || data.is_released;
+
+              if (finalAccess) {
+                accessBadge.className = 'badge bg-success';
+                accessBadge.innerHTML = '<i class="fas fa-check-circle me-1"></i>Can Access';
+              } else {
+                accessBadge.className = 'badge bg-danger';
+                accessBadge.innerHTML = '<i class="fas fa-times-circle me-1"></i>Blocked';
+              }
+
+              // Show success message
+              const rollNumber = row.querySelector('td:first-child strong').textContent;
+              console.log(`✅ Successfully ${data.is_released ? 'released' : 'blocked'} experiment for ${rollNumber}`);
+
+            } else {
+              // Revert the toggle on error
+              if (currentState) {
+                this.classList.add('active');
+              } else {
+                this.classList.remove('active');
+              }
+              alert('Error updating release status: ' + (data.error || 'Unknown error'));
+            }
+          })
+          .catch(error => {
+            // Revert the toggle on error
+            if (currentState) {
+              this.classList.add('active');
+            } else {
+              this.classList.remove('active');
+            }
+            console.error('Error:', error);
+            alert('Error updating release status. Please try again.');
+          });
+        });
+      });
+
+
+      // Handle reset buttons
+      document.querySelectorAll('.btn-reset-experiment').forEach(btn => {
+        btn.addEventListener('click', function() {
+          const studentId = this.dataset.studentId;
+          const experimentId = this.dataset.experimentId;
+          const row = this.closest('tr');
+          const rollNumber = row.querySelector('td:first-child strong').textContent;
+          if (!confirm(`Are you sure you want to reset all attempts and marks for ${rollNumber} in this experiment? This cannot be undone.`)) {
+            return;
+          }
+          this.disabled = true;
+          this.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Resetting...';
+          fetch('/kdm_lab_reset_individual_experiment', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ student_id: parseInt(studentId), experiment_id: parseInt(experimentId) })
+          })
+          .then(response => response.json())
+          .then(data => {
+            if (data.success) {
+              alert(`Experiment attempts and marks reset for ${rollNumber}`);
+              // Optionally, update UI to reflect reset (e.g., badges)
+            } else {
+              alert('Error resetting experiment: ' + (data.error || 'Unknown error'));
+            }
+          })
+          .catch(error => {
+            alert('Error resetting experiment. Please try again.');
+          })
+          .finally(() => {
+            this.disabled = false;
+            this.innerHTML = '<i class="fas fa-undo"></i> Reset';
+          });
+        });
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Create Python LAB Quiz</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+    />
+    <style>
+      .criteria-card {
+        border-left: 4px solid #0d6efd;
+      }
+      .withheld-box {
+        transform: scale(1.2);
+        margin-left: 6px;
+      }
+      textarea {
+        resize: vertical;
+      }
+    </style>
+  </head>
+  <body class="bg-light">
+    <div class="container py-4">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="text-primary mb-0">
+          <i class="fas fa-pen-to-square"></i> Create / Edit Python LAB Quiz
+        </h2>
+        <a
+          href="{{ url_for('python_lab_admin_dashboard') }}"
+          class="btn btn-outline-secondary"
+        >
+          <i class="fas fa-arrow-left"></i> Back to Python LAB Dashboard
+        </a>
+      </div>
+
+      <!-- Flash Messages -->
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          {% for category, message in messages %}
+            <div class="alert alert-{{ 'danger' if category == 'error' else 'warning' if category == 'warning' else 'success' if category == 'success' else 'info' }} alert-dismissible fade show" role="alert">
+              {{ message }}
+              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
+
+      <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+          <h4 class="mb-0">
+            <i class="fas fa-clipboard-list"></i> Quiz Configuration
+          </h4>
+        </div>
+        <div class="card-body">
+          <form method="POST">
+            <div class="row mb-3">
+              <div class="col-md-4">
+                <label for="experiment_number" class="form-label fw-semibold">
+                  <i class="fas fa-flask"></i> Experiment
+                </label>
+                <select
+                  name="experiment_number"
+                  id="experiment_number"
+                  class="form-select"
+                  required
+                  onchange="window.location.href = '{{ url_for('create_python_lab_quiz') }}?experiment=' + this.value"
+                >
+                  <option value="" disabled {% if not experiment %}selected{% endif %}>Choose Experiment</option>
+                  {% for exp in experiments %}
+                  <option
+                    value="{{ exp.experiment_number }}"
+                    {% if experiment and experiment.experiment_number == exp.experiment_number %}selected{% endif %}
+                  >
+                    EX-{{ exp.experiment_number }}
+                  </option>
+                  {% endfor %}
+                </select>
+                <small class="text-muted">Select experiment to create/edit quiz</small>
+              </div>
+
+              {% if experiment %}
+              <div class="col-md-5">
+                <label for="title" class="form-label fw-semibold">
+                  <i class="fas fa-tag"></i> Experiment Title
+                </label>
+                <input
+                  type="text"
+                  name="title"
+                  id="title"
+                  class="form-control"
+                  value="{{ experiment.title if experiment else '' }}"
+                  placeholder="Enter experiment title"
+                  required
+                />
+              </div>
+
+              <div class="col-md-3">
+                <label for="criteria_count" class="form-label fw-semibold">
+                  <i class="fas fa-list-ol"></i> Number of Criteria
+                </label>
+                <input
+                  type="number"
+                  name="criteria_count"
+                  id="criteria_count"
+                  class="form-control"
+                  value="{{ lab_settings.num_criteria }}"
+                  min="1"
+                  max="20"
+                  required
+                />
+                <small class="text-muted">Questions for this experiment</small>
+              </div>
+              {% endif %}
+            </div>
+
+            {% if experiment %}
+            <!-- Generate Criteria Forms -->
+            <div class="row">
+              <div class="col-12">
+                <h5 class="text-secondary mb-3">
+                  <i class="fas fa-question-circle"></i> Experiment Criteria / Questions
+                </h5>
+
+
+
+                {% for i in range(1, lab_settings.num_criteria + 1) %}
+                <div class="card criteria-card mb-3">
+                  <div class="card-header bg-light">
+                    <h6 class="mb-0 text-primary">
+                      <i class="fas fa-edit"></i> Criteria {{ i }}
+                      {% if current_admin.admin_level == 'super_admin' %}
+                      <div class="form-check form-check-inline float-end">
+                        <input
+                          class="form-check-input withheld-box"
+                          type="checkbox"
+                          name="withhold_{{ i }}"
+                          id="withhold_{{ i }}"
+                          {% if existing_criteria|length >= i and existing_criteria[i-1].withheld %}checked{% endif %}
+                        />
+                        <label class="form-check-label" for="withhold_{{ i }}">
+                          <small><strong>Withhold (Admin Only)</strong></small>
+                        </label>
+                      </div>
+                      {% endif %}
+                    </h6>
+                  </div>
+                  <div class="card-body">
+                    <div class="mb-3">
+                      <label for="question_{{ i }}" class="form-label fw-semibold">Question Text</label>
+                      <textarea
+                        name="question_{{ i }}"
+                        id="question_{{ i }}"
+                        class="form-control"
+                        rows="3"
+                        placeholder="Enter the question for criteria {{ i }}"
+                      >{{ existing_criteria[i-1].question_text if existing_criteria|length >= i else '' }}</textarea>
+                    </div>                    <div class="row">
+                      <div class="col-md-6 mb-3">
+                        <label class="form-label fw-semibold">Option A</label>
+                        <div class="input-group">
+                          <input
+                            type="text"
+                            name="optionA_{{ i }}"
+                            class="form-control"
+                            placeholder="Option A text"
+                            value="{{ existing_criteria[i-1].option_a if existing_criteria|length >= i else '' }}"
+                          />
+                          <span class="input-group-text">Marks:</span>
+                          <input
+                            type="number"
+                            name="marksA_{{ i }}"
+                            class="form-control"
+                            style="max-width: 80px"
+                            step="0.5"
+                            min="0"
+                            max="10"
+                            value="{{ existing_criteria[i-1].marks_a if existing_criteria|length >= i else '' }}"
+                          />
+                        </div>
+                      </div>
+                      <div class="col-md-6 mb-3">
+                        <label class="form-label fw-semibold">Option B</label>
+                        <div class="input-group">
+                          <input
+                            type="text"
+                            name="optionB_{{ i }}"
+                            class="form-control"
+                            placeholder="Option B text"
+                            value="{{ existing_criteria[i-1].option_b if existing_criteria|length >= i else '' }}"
+                          />
+                          <span class="input-group-text">Marks:</span>
+                          <input
+                            type="number"
+                            name="marksB_{{ i }}"
+                            class="form-control"
+                            style="max-width: 80px"
+                            step="0.5"
+                            min="0"
+                            max="10"
+                            value="{{ existing_criteria[i-1].marks_b if existing_criteria|length >= i else '' }}"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="row">
+                      <div class="col-md-6 mb-3">
+                        <label class="form-label fw-semibold">Option C</label>
+                        <div class="input-group">
+                          <input
+                            type="text"
+                            name="optionC_{{ i }}"
+                            class="form-control"
+                            placeholder="Option C text"
+                            value="{{ existing_criteria[i-1].option_c if existing_criteria|length >= i else '' }}"
+                          />
+                          <span class="input-group-text">Marks:</span>
+                          <input
+                            type="number"
+                            name="marksC_{{ i }}"
+                            class="form-control"
+                            style="max-width: 80px"
+                            step="0.5"
+                            min="0"
+                            max="10"
+                            value="{{ existing_criteria[i-1].marks_c if existing_criteria|length >= i else '' }}"
+                          />
+                        </div>
+                      </div>
+                      <div class="col-md-6 mb-3">
+                        <label class="form-label fw-semibold">Option D</label>
+                        <div class="input-group">
+                          <input
+                            type="text"
+                            name="optionD_{{ i }}"
+                            class="form-control"
+                            placeholder="Option D text"
+                            value="{{ existing_criteria[i-1].option_d if existing_criteria|length >= i else '' }}"
+                          />
+                          <span class="input-group-text">Marks:</span>
+                          <input
+                            type="number"
+                            name="marksD_{{ i }}"
+                            class="form-control"
+                            style="max-width: 80px"
+                            step="0.5"
+                            min="0"
+                            max="10"
+                            value="{{ existing_criteria[i-1].marks_d if existing_criteria|length >= i else '' }}"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="row">
+                      <div class="col-md-4">
+                        <label for="max_marks_{{ i }}" class="form-label fw-semibold">Max Marks</label>
+                        <input
+                          type="number"
+                          name="max_marks_{{ i }}"
+                          id="max_marks_{{ i }}"
+                          class="form-control"
+                          step="0.5"
+                          min="0"
+                          max="10"
+                          value="{{ existing_criteria[i-1].max_marks if existing_criteria|length >= i else '' }}"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                {% endfor %}
+
+                <div class="text-center mt-4">
+                  <button type="submit" class="btn btn-success btn-lg px-5">
+                    <i class="fas fa-save"></i> Save Quiz
+                  </button>
+                  <a
+                    href="{{ url_for('python_lab_admin_dashboard') }}"
+                    class="btn btn-secondary btn-lg px-5 ms-3"
+                  >
+                    <i class="fas fa-times"></i> Cancel
+                  </a>
+                </div>
+              </div>
+            </div>
+            {% else %}
+            <div class="text-center py-4">
+              <i class="fas fa-info-circle fa-3x text-muted mb-3"></i>
+              <h5 class="text-muted">Please select an experiment to create/edit quiz</h5>
+            </div>
+            {% endif %}
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  </body>
+</html>

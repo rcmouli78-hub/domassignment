@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Problem 6: Flywheel Mass</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+  </head>
+  <body class="bg-light">
+    <div class="container py-5">
+      <div class="card shadow-lg p-4">
+        <h2 class="text-center text-primary mb-4">
+          Problem 6: Flywheel Mass from Turning Moment Diagram
+        </h2>
+
+        <!-- Problem Statement -->
+        <div class="alert alert-info mb-4">
+          <h5 class="text-primary mb-3">Problem Statement</h5>
+          <p>
+            The <strong>turning moment diagram</strong> for a multi-cylinder
+            engine has been drawn to scale. The diagram shows the variation of
+            torque output over one complete cycle, with intercepted areas
+            between the output torque curve and the mean resistance line
+            representing energy variations.
+          </p>
+
+          <p class="mb-2">
+            <strong>Given:</strong>
+          </p>
+          <ul class="mb-3">
+            <li>
+              <strong>Vertical scale:</strong> 1 mm = {{ vars.vertical_scale }}
+              N-m
+            </li>
+            <li>
+              <strong>Horizontal scale:</strong> 1 mm = {{ vars.horizontal_scale
+              }}°
+            </li>
+            <li><strong>Engine speed:</strong> {{ vars.engine_speed }} rpm</li>
+            <li><strong>Flywheel radius:</strong> {{ vars.radius }} m</li>
+            <li>
+              <strong>Speed fluctuation limit:</strong> ±{{
+              vars.fluctuation_percent }}% of the mean speed
+            </li>
+          </ul>
+
+          <p class="mb-2">
+            <strong>Intercepted areas</strong> between the output torque curve
+            and mean resistance line, taken in order from one end, are:
+          </p>
+          <p class="text-center mb-3">
+            <strong>
+              {% for a in vars.energy %} {{ "+" if a > 0 else "" }}{{ a }}{% if
+              not loop.last %}, {% endif %} {% endfor %} mm²
+            </strong>
+          </p>
+
+          <p class="text-primary mb-0">
+            <strong>Find:</strong> The necessary mass of the flywheel to limit
+            the total fluctuation of speed within the specified range.
+          </p>
+        </div>
+
+        {% if feedback %}
+        <div class="alert alert-info">{{ feedback }}</div>
+
+        <div class="card mt-3">
+          <div class="card-header bg-success text-white">
+            <strong>Solution Steps</strong>
+          </div>
+          <div class="card-body">
+            <ul class="list-unstyled">
+              {% for s in steps %}
+              <li>{{ s }}</li>
+              {% endfor %}
+            </ul>
+          </div>
+        </div>
+
+        <div class="text-center mt-4">
+          <a
+            href="{% if user.role in ['admin', 'super_admin'] %}{{ url_for('admin_assignment_view') }}{% else %}{{ url_for('student_dashboard') }}{% endif %}"
+            class="btn btn-primary w-100"
+          >
+            Back to Dashboard
+          </a>
+        </div>
+
+        {% else %}
+        <!-- Check if user has exceeded attempts -->
+        {% if user and user.p6_attempts >= 2 and user.role not in ['admin',
+        'super_admin'] %}
+        <div class="alert alert-warning">
+          <h4>Maximum Attempts Reached</h4>
+          <p>
+            You have used all your attempts ({{ user.p6_attempts }}/2) for this
+            problem.
+          </p>
+          <p>Your best score: {{ user.p6_score }} points</p>
+          <a
+            href="{% if user.role in ['admin', 'super_admin'] %}{{ url_for('admin_assignment_view') }}{% else %}{{ url_for('student_dashboard') }}{% endif %}"
+            class="btn btn-primary"
+            >Back to Dashboard</a
+          >
+        </div>
+        {% else %}
+        <!-- Show form only if attempts available -->
+        {% if user %}
+        <div class="alert alert-info">
+          Attempts used: {{ user.p6_attempts }}/2 | Current score: {{
+          user.p6_score }} points
+        </div>
+        {% endif %}
+        <form method="POST">
+          <div class="mb-3">
+            <label class="form-label">Mass of Flywheel (kg):</label>
+            <input
+              type="number"
+              step="any"
+              class="form-control"
+              name="Answer_mass"
+              required
+            />
+          </div>
+          <div class="text-center">
+            <button type="submit" class="btn btn-success w-50">
+              Submit Answer
+            </button>
+          </div>
+        </form>
+        {% endif %} {% endif %}
+      </div>
+    </div>
+
+    <!-- Include celebration animation if perfect first attempt -->
+    {% if show_celebration %} {% include 'celebration.html' %} {% endif %}
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  </body>
+  {% if user.role == 'student' %}
+  {% set guard_form_selector = 'form' %}
+  {% set guard_context_label = 'assignment' %}
+  {% include '_strict_tab_open_guard.html' %}
+  {% endif %}
+</html>

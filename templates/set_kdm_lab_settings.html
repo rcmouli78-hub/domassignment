@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Set KDM LAB Settings</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"/>
+  </head>
+  <body class="bg-light">
+    <div class="container py-5">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="text-primary mb-0">
+          <i class="fas fa-sliders"></i> KDM LAB — Configure Settings
+        </h2>
+        <a href="{{ url_for('kdm_lab_admin_dashboard') }}" class="btn btn-outline-secondary">
+          <i class="fas fa-arrow-left"></i> Back to KDM LAB Dashboard
+        </a>
+      </div>
+
+      <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+          <h4 class="mb-0"><i class="fas fa-gears"></i> Lab Configuration</h4>
+        </div>
+        <div class="card-body">
+          <form method="POST" class="p-3">
+            <div class="row mb-3">
+              <div class="col-md-6">
+                <label for="num_experiments" class="form-label fw-semibold">Number of Experiments</label>
+                <input type="number" name="num_experiments" id="num_experiments"
+                       class="form-control"
+                       value="{{ lab_settings.num_experiments }}" min="1" required />
+                <small class="text-muted">Defines how many experiments (EX-1, EX-2, …) are created globally.</small>
+              </div>
+              <div class="col-md-6">
+                <label for="num_criteria" class="form-label fw-semibold">Number of Criteria per Experiment</label>
+                <input type="number" name="num_criteria" id="num_criteria"
+                       class="form-control"
+                       value="{{ lab_settings.num_criteria }}" min="1" required />
+                <small class="text-muted">Defines how many questions/criteria each experiment will have.</small>
+              </div>
+            </div>
+
+            <div class="text-center mt-4">
+              <button type="submit" class="btn btn-success px-4">
+                <i class="fas fa-save"></i> Save Settings
+              </button>
+              <a href="{{ url_for('kdm_lab_admin_dashboard') }}" class="btn btn-outline-secondary px-4">
+                <i class="fas fa-times"></i> Cancel
+              </a>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Current Experiments Section -->
+      {% if current_experiments %}
+      <div class="card shadow-sm mt-4">
+        <div class="card-header bg-info text-white">
+          <h5 class="mb-0"><i class="fas fa-list"></i> Current Experiments</h5>
+        </div>
+        <div class="card-body">
+          <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle"></i>
+            <strong>Warning:</strong> Deleting an experiment will permanently remove all associated data including:
+            <ul class="mb-0 mt-2">
+              <li>All criteria and questions for this experiment</li>
+              <li>All student responses and submissions</li>
+              <li>All marks and evaluations</li>
+              <li>All student experiment releases</li>
+            </ul>
+          </div>
+          
+          <div class="row">
+            {% for experiment in current_experiments %}
+            <div class="col-md-6 col-lg-4 mb-3">
+              <div class="card border-secondary">
+                <div class="card-body">
+                  <h6 class="card-title">
+                    <i class="fas fa-flask"></i> {{ experiment.title }}
+                  </h6>
+                  <p class="card-text text-muted small">
+                    <i class="fas fa-hashtag"></i> Experiment #{{ experiment.experiment_number }}
+                    <br>
+                    <i class="fas fa-clock"></i> Created: {{ experiment.created_at.strftime('%Y-%m-%d %H:%M') if experiment.created_at else 'Unknown' }}
+                  </p>
+                  <button type="button" 
+                          class="btn btn-danger btn-sm" 
+                          onclick="deleteKDMExperiment({{ experiment.id }}, '{{ experiment.title }}')">
+                    <i class="fas fa-trash"></i> Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          
+          {% if current_experiments|length > 1 %}
+          <div class="text-center mt-3">
+            <button type="button" class="btn btn-danger" onclick="deleteAllKDMExperiments()">
+              <i class="fas fa-trash-alt"></i> Delete All Experiments
+            </button>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+      {% else %}
+      <div class="card shadow-sm mt-4">
+        <div class="card-body text-center text-muted">
+          <i class="fas fa-info-circle fa-2x mb-2"></i>
+          <p>No experiments found. Configure settings above to create experiments.</p>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      function deleteKDMExperiment(experimentId, experimentTitle) {
+        if (confirm(`Are you sure you want to delete experiment "${experimentTitle}"?\n\nThis will permanently remove all associated data including criteria, student responses, marks, and releases.`)) {
+          fetch(`/delete_kdm_lab_experiment/${experimentId}`, {
+            method: 'DELETE',
+            headers: {
+              'Content-Type': 'application/json',
+            }
+          })
+          .then(response => response.json())
+          .then(data => {
+            if (data.success) {
+              alert('Experiment deleted successfully!');
+              location.reload();
+            } else {
+              alert('Error: ' + data.message);
+            }
+          })
+          .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while deleting the experiment.');
+          });
+        }
+      }
+
+      function deleteAllKDMExperiments() {
+        if (confirm('⚠️ WARNING: You are about to delete ALL KDM Lab experiments!\n\nThis will permanently remove:\n- All experiments and their criteria\n- All student responses and submissions\n- All marks and evaluations\n- All student experiment releases\n\nThis action CANNOT be undone!\n\nAre you absolutely sure?')) {
+          if (confirm('FINAL CONFIRMATION: Delete ALL KDM Lab experiments?\n\nClick OK to proceed with permanent deletion.')) {
+            fetch('/delete_all_kdm_lab_experiments', {
+              method: 'DELETE',
+              headers: {
+                'Content-Type': 'application/json',
+              }
+            })
+            .then(response => response.json())
+            .then(data => {
+              if (data.success) {
+                alert('All experiments deleted successfully!');
+                location.reload();
+              } else {
+                alert('Error: ' + data.message);
+              }
+            })
+            .catch(error => {
+              console.error('Error:', error);
+              alert('An error occurred while deleting all experiments.');
+            });
+          }
+        }
+      }
+    </script>
+  </body>
+</html>

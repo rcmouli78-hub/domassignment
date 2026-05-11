@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz - {{ user.rollnumber }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <style>
+        .quiz-container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .question-card {
+            border: 1px solid #dee2e6;
+            border-radius: 0.375rem;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            background-color: #fff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .question-header {
+            background-color: #f8f9fa;
+            padding: 0.75rem 1rem;
+            margin: -1.5rem -1.5rem 1rem -1.5rem;
+            border-radius: 0.375rem 0.375rem 0 0;
+            border-bottom: 1px solid #dee2e6;
+        }
+        .choice-option {
+            margin-bottom: 0.75rem;
+            padding: 0.75rem;
+            border: 1px solid #dee2e6;
+            border-radius: 0.25rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .choice-option:hover {
+            background-color: #f8f9fa;
+            border-color: #007bff;
+        }
+        .choice-option.selected {
+            background-color: #e3f2fd;
+            border-color: #007bff;
+            border-width: 2px;
+        }
+        .quiz-info {
+            background-color: #e3f2fd;
+            padding: 1rem;
+            border-radius: 0.375rem;
+            margin-bottom: 1.5rem;
+        }
+        .attempt-info {
+            background-color: #fff3cd;
+            padding: 0.75rem;
+            border-radius: 0.375rem;
+            margin-bottom: 1rem;
+        }
+        .timer {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: #fff;
+            border: 2px solid #007bff;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            min-width: 150px;
+            text-align: center;
+            z-index: 1000;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .progress-indicator {
+            margin-bottom: 1.5rem;
+        }
+        .question-navigation {
+            position: sticky;
+            top: 20px;
+            background-color: #fff;
+            border: 1px solid #dee2e6;
+            border-radius: 0.375rem;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        .nav-question {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            line-height: 38px;
+            text-align: center;
+            border: 1px solid #ccc;
+            border-radius: 50%;
+            margin: 2px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .nav-question.answered {
+            background-color: #28a745;
+            color: white;
+            border-color: #28a745;
+        }
+        .nav-question.current {
+            background-color: #007bff;
+            color: white;
+            border-color: #007bff;
+        }
+        .nav-question:hover {
+            background-color: #f8f9fa;
+        }
+        .submit-section {
+            background-color: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 0.375rem;
+            margin-top: 2rem;
+            text-align: center;
+        }
+        /* Quiz results styling */
+        .bg-light-success {
+            background-color: #d4edda !important;
+        }
+        .bg-light-primary {
+            background-color: #d1ecf1 !important;
+        }
+        .bg-light-danger {
+            background-color: #f8d7da !important;
+        }
+    </style>
+</head>
+<body>
+    {% if quiz_mode == 'start' %}
+    <!-- Quiz Start Page -->
+    <div class="container quiz-container mt-4">
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h3 class="mb-0">📝 Quiz - Attempt {{ next_attempt_number }}</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="quiz-info">
+                            <h5>Quiz Information</h5>
+                            {% if selected_quiz %}
+                            <p class="mb-2">
+                                <strong>Selected Quiz:</strong> {{ selected_quiz.quiz_title }}
+                                <span class="text-muted">({{ selected_quiz.quiz_name }})</span>
+                            </p>
+                            {% endif %}
+                            {% if available_quizzes and available_quizzes|length > 1 %}
+                            <form method="GET" action="{{ url_for('take_quiz') }}" class="mb-3">
+                                <label class="form-label"><strong>Choose Quiz</strong></label>
+                                <select class="form-select" name="quiz_name" onchange="this.form.submit()">
+                                    {% for quiz in available_quizzes %}
+                                    <option value="{{ quiz.quiz_name }}" {% if selected_quiz and quiz.quiz_name == selected_quiz.quiz_name %}selected{% endif %}>
+                                        {{ quiz.quiz_title }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </form>
+                            {% endif %}
+                            <ul class="mb-0">
+                                <li><strong>Total Questions:</strong> {{ total_questions }}</li>
+                                <li><strong>Total Marks:</strong> {{ total_marks }} marks</li>
+                                <li><strong>Time Limit:</strong> 20 minutes</li>
+                                <li><strong>Attempt Number:</strong> {{ next_attempt_number }} of {{ max_attempts if max_attempts else 'Unlimited' }}</li>
+                            </ul>
+                        </div>
+
+                        {% if previous_attempts %}
+                        <div class="attempt-info">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h6 class="mb-0">Your Previous Attempts:</h6>
+                                {% if user.role == 'admin' or user.role == 'super_admin' %}
+                                <form method="POST" action="{{ url_for('reset_quiz_attempts') }}" class="d-inline"
+                                      onsubmit="return confirm('Are you sure you want to reset all quiz attempts? This action cannot be undone.')">
+                                    <button type="submit" class="btn btn-warning btn-sm">
+                                        <i class="bi bi-arrow-clockwise"></i> Reset All Attempts
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </div>
+                            <div class="row">
+                                {% for attempt in previous_attempts %}
+                                <div class="col-md-6">
+                                    <div class="card mb-2">
+                                        <div class="card-body py-2">
+                                            <strong>Attempt {{ attempt.attempt_number }}:</strong>
+                                            {{ attempt.score }}/{{ attempt.total_points }} marks
+                                            ({{ "%.1f"|format((attempt.score/attempt.total_points)*100) }}%)
+                                            <br>
+                                            <small class="text-muted">{{ attempt.completed_at.strftime('%Y-%m-%d %H:%M') if attempt.completed_at else 'In progress' }}</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <div class="text-center">
+                            <h5>Instructions:</h5>
+                            <ul class="list-unstyled text-start d-inline-block">
+                                <li>✅ Read each question carefully</li>
+                                <li>✅ For single-choice questions, select ONE option</li>
+                                <li>✅ For multiple-choice questions, select ALL correct options</li>
+                                <li>✅ You can navigate between questions freely</li>
+                                <li>✅ Submit only when all questions are answered</li>
+                                <li>⚠️ Once submitted, you cannot change your answers</li>
+                            </ul>
+                        </div>
+
+                        <div class="d-flex justify-content-between mt-4">
+                            {% if user.role == 'admin' or user.role == 'super_admin' %}
+                            <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary">Back to Dashboard</a>
+                            {% else %}
+                            <a href="{{ url_for('student_dashboard') }}" class="btn btn-secondary">Back to Dashboard</a>
+                            {% endif %}
+                            <form method="POST" action="{{ url_for('take_quiz') }}">
+                                <input type="hidden" name="action" value="start">
+                                <input type="hidden" name="quiz_name" value="{{ selected_quiz.quiz_name if selected_quiz else '' }}">
+                                <button type="submit" class="btn btn-primary btn-lg">Start Quiz</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% elif quiz_mode == 'take' %}
+    <!-- Quiz Taking Page -->
+    <div class="timer">
+        <div><strong>Time Remaining</strong></div>
+        <div id="timer-display" class="h4 text-primary">20:00</div>
+    </div>
+
+    <div class="container quiz-container mt-4">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="question-navigation">
+                    <h6>Question Navigation</h6>
+                    <div id="question-nav">
+                        {% for i in range(questions|length) %}
+                        <span class="nav-question" data-question="{{ i }}" onclick="goToQuestion({{ i }})">{{ i + 1 }}</span>
+                        {% endfor %}
+                    </div>
+                    <div class="mt-3">
+                        <div class="d-flex align-items-center mb-2">
+                            <span class="nav-question answered me-2"></span>
+                            <small>Answered</small>
+                        </div>
+                        <div class="d-flex align-items-center mb-2">
+                            <span class="nav-question me-2" style="background-color: #007bff; color: white; border-color: #007bff;"></span>
+                            <small>Current</small>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <span class="nav-question me-2"></span>
+                            <small>Not Answered</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-9">
+                <form id="quiz-form" method="POST" action="{{ url_for('submit_quiz') }}">
+                    <input type="hidden" name="attempt_id" value="{{ attempt_id }}">
+
+                    <div class="progress-indicator">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h4>Quiz - Attempt {{ attempt_number }}</h4>
+                            <span class="badge bg-info">
+                                <span id="answered-count">0</span> / {{ questions|length }} answered
+                            </span>
+                        </div>
+                        <div class="progress mt-2">
+                            <div class="progress-bar" id="progress-bar" role="progressbar" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    {% for question in questions %}
+                    <div class="question-card" id="question-{{ loop.index0 }}" style="{{ 'display: none;' if loop.index0 > 0 else '' }}">
+                        <div class="question-header">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0">Question {{ loop.index }} of {{ questions|length }}</h5>
+                                <div>
+                                    <span class="badge bg-secondary">{{ question.co_number }}</span>
+                                    <span class="badge bg-primary">{{ question.points }} mark{{ 's' if question.points != 1 else '' }}</span>
+                                    <span class="badge bg-{{ 'info' if question.answer_type == 'single' else 'warning' }}">
+                                        {{ question.answer_type|title }} Answer
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="question-text mb-4">
+                            <p class="h6">{{ question.question_text }}</p>
+                        </div>
+
+                        <div class="choices">
+                            {% set q_index = loop.index0 %}  {# store the question index once per question #}
+                            {% for choice_index, choice_text in question.shuffled_choices %}
+                            <div class="choice-option" data-question="{{ q_index }}" data-choice="{{ choice_index }}">
+                                <div class="form-check">
+                                    <input class="form-check-input"
+                                        type="{{ 'radio' if question.answer_type == 'single' else 'checkbox' }}"
+                                        name="question_{{ q_index }}"
+                                        value="{{ choice_index }}"
+                                        id="q{{ q_index }}_c{{ choice_index }}">
+                                    <label class="form-check-label w-100" for="q{{ q_index }}_c{{ choice_index }}">
+                                        <strong>{{ ['A', 'B', 'C', 'D'][loop.index0] }}.</strong> {{ choice_text }}
+                                    </label>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+
+
+                        <div class="d-flex justify-content-between mt-4">
+                            <button type="button" class="btn btn-outline-secondary" onclick="previousQuestion()"
+                                    {{ 'disabled' if loop.index0 == 0 else '' }}>
+                                ← Previous
+                            </button>
+                            <div>
+                                <span class="text-muted">Question {{ loop.index }} of {{ questions|length }}</span>
+                            </div>
+                            <button type="button" class="btn btn-outline-primary" onclick="nextQuestion()"
+                                    {{ 'disabled' if loop.index0 == questions|length - 1 else '' }}>
+                                Next →
+                            </button>
+                        </div>
+                    </div>
+                    {% endfor %}
+
+                    <div class="submit-section">
+                        <div class="alert alert-warning">
+                            <h6>⚠️ Final Submission</h6>
+                            <p class="mb-0">Make sure you have answered all questions before submitting. You cannot change your answers after submission.</p>
+                        </div>
+                        <div class="d-flex justify-content-center gap-3">
+                            {% if user.role == 'admin' or user.role == 'super_admin' %}
+                            <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary">Exit Quiz</a>
+                            {% else %}
+                            <a href="{{ url_for('student_dashboard') }}" class="btn btn-secondary">Exit Quiz</a>
+                            {% endif %}
+                            <button type="button" class="btn btn-warning" onclick="reviewAnswers()">Review Answers</button>
+                            <button type="submit" class="btn btn-success btn-lg" onclick="return confirmSubmit()">Submit Quiz</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    {% elif quiz_mode == 'results' %}
+    <!-- Quiz Results Page -->
+    <div class="container quiz-container mt-4">
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-success text-white">
+                        <h3 class="mb-0">🎉 Quiz Completed - Attempt {{ attempt.attempt_number }}
+                        {% if user.role == 'admin' and attempt_user and attempt_user.rollnumber != user.rollnumber %}
+                        <small class="d-block mt-1">Student: {{ attempt_user.rollnumber }} ({{ attempt_user.name }})</small>
+                        {% endif %}
+                        </h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="row text-center mb-4">
+                            <div class="col-md-3">
+                                <div class="card bg-primary text-white">
+                                    <div class="card-body">
+                                        <h4>{{ attempt.score }}</h4>
+                                        <p class="mb-0">Total Score</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card bg-info text-white">
+                                    <div class="card-body">
+                                        <h4>{{ attempt.total_points }}</h4>
+                                        <p class="mb-0">Max Possible</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card bg-{{ 'success' if (attempt.score/attempt.total_points)*100 >= 60 else 'warning' }} text-white">
+                                    <div class="card-body">
+                                        <h4>{{ "%.1f"|format((attempt.score/attempt.total_points)*100) }}%</h4>
+                                        <p class="mb-0">Percentage</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card bg-secondary text-white">
+                                    <div class="card-body">
+                                        <h4>{{ correct_answers }}/{{ total_questions }}</h4>
+                                        <p class="mb-0">Correct</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- CO-wise Performance -->
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h5>CO-wise Performance</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    {% for co, performance in co_performance.items() %}
+                                    <div class="col-md-4 mb-3">
+                                        <div class="card">
+                                            <div class="card-body text-center">
+                                                <h6>{{ co }}</h6>
+                                                <div class="progress mb-2">
+                                                    <div class="progress-bar bg-{{ 'success' if performance.percentage >= 60 else 'warning' if performance.percentage >= 40 else 'danger' }}"
+                                                         style="width: {{ performance.percentage }}%"></div>
+                                                </div>
+                                                <small>{{ performance.scored }}/{{ performance.total }} marks ({{ "%.1f"|format(performance.percentage) }}%)</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Question-wise Results -->
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h5>Question-wise Results</h5>
+                            </div>
+                            <div class="card-body">
+                                {% for response in responses %}
+                                <div class="card mb-3 border-{{ 'success' if response.is_correct else 'danger' }}">
+                                    <div class="card-header bg-{{ 'success' if response.is_correct else 'danger' }} text-white">
+                                        <div class="d-flex justify-content-between">
+                                            <span>Question {{ loop.index }} ({{ response.question.co_number }})</span>
+                                            <span>{{ response.points_earned }}/{{ response.question.points }} marks</span>
+                                        </div>
+                                    </div>
+                                    <div class="card-body">
+                                        <p><strong>{{ response.question.question_text }}</strong></p>
+                                        <div class="row">
+                                            {% for choice in response.question.choices %}
+                                            {% set choice_letter = ['A', 'B', 'C', 'D'][loop.index0] %}
+                                            <div class="col-md-6 mb-2">
+                                                <div class="p-2 border rounded
+                                                    {{ 'border-success bg-light-success' if choice_letter in response.question.correct_answers else '' }}
+                                                    {{ 'border-primary bg-light-primary' if loop.index0 in response.selected_answer else '' }}
+                                                    {{ 'border-danger bg-light-danger' if loop.index0 in response.selected_answer and choice_letter not in response.question.correct_answers else '' }}">
+                                                    <strong>{{ choice_letter }}.</strong>
+                                                    {% if choice is mapping and choice.text %}
+                                                        {{ choice.text }}
+                                                    {% else %}
+                                                        {{ choice }}
+                                                    {% endif %}
+                                                    {% if choice_letter in response.question.correct_answers %}
+                                                        <span class="badge bg-success ms-2">Correct</span>
+                                                    {% endif %}
+                                                    {% if loop.index0 in response.selected_answer %}
+                                                        <span class="badge bg-primary ms-2">Your Answer</span>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <div class="text-center">
+                            {% if can_retake %}
+                            <a href="{{ url_for('take_quiz', quiz_name=retake_quiz_name) }}" class="btn btn-primary">Take Quiz Again</a>
+                            {% endif %}
+                            {% if user.role == 'admin' or user.role == 'super_admin' %}
+                            <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary">Back to Dashboard</a>
+                            {% else %}
+                            <a href="{{ url_for('student_dashboard') }}" class="btn btn-secondary">Back to Dashboard</a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- =================== QUIZ JAVASCRIPT =================== -->
+  {% if user.role == 'student' %}
+  <script>
+    let currentQuestion = 0;
+    let totalQuestions = {{ questions|length if questions else 0 }};
+    let startTime = new Date();
+    let timeLimit = 20 * 60 * 1000; // 20 min
+
+    function goToQuestion(index) {
+      document.querySelectorAll(".question-card").forEach((c) => (c.style.display = "none"));
+      document.getElementById(`question-${index}`).style.display = "block";
+      document.querySelectorAll(".nav-question").forEach((n) => n.classList.remove("current"));
+      const nav = document.querySelector(`[data-question="${index}"]`);
+      if (nav) nav.classList.add("current");
+      currentQuestion = index;
+    }
+
+    function nextQuestion() {
+      if (currentQuestion < totalQuestions - 1) goToQuestion(++currentQuestion);
+    }
+
+    function previousQuestion() {
+      if (currentQuestion > 0) goToQuestion(--currentQuestion);
+    }
+
+    function updateQuestionNavigation() {
+      for (let i = 0; i < totalQuestions; i++) {
+        const answered = document.querySelectorAll(`input[name="question_${i}"]:checked`).length > 0;
+        const nav = document.querySelector(`[data-question="${i}"]`);
+        nav.classList.toggle("answered", answered);
+      }
+    }
+
+    function updateProgress() {
+      const answered = [...Array(totalQuestions).keys()].filter(
+        (i) => document.querySelectorAll(`input[name="question_${i}"]:checked`).length > 0
+      ).length;
+      document.getElementById("answered-count").textContent = answered;
+      document.getElementById("progress-bar").style.width = (answered / totalQuestions) * 100 + "%";
+    }
+
+    function updateTimer() {
+      const remaining = Math.max(0, timeLimit - (new Date() - startTime));
+      const m = Math.floor(remaining / 60000);
+      const s = Math.floor((remaining % 60000) / 1000);
+      document.getElementById("timer-display").textContent =
+        `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+      if (remaining <= 0) {
+        showAutoSubmitModal(() => document.getElementById("quiz-form").submit());
+      }
+    }
+
+    function confirmSubmit() {
+      const answered = [...Array(totalQuestions).keys()].filter(
+        (i) => document.querySelectorAll(`input[name="question_${i}"]:checked`).length > 0
+      ).length;
+      if (answered < totalQuestions)
+        return confirm(`You answered ${answered}/${totalQuestions}. Submit anyway?`);
+      return confirm("Submit your quiz?");
+    }
+
+    function reviewAnswers() {
+      const unanswered = [...Array(totalQuestions).keys()].filter(
+        (i) => document.querySelectorAll(`input[name="question_${i}"]:checked`).length === 0
+      );
+      if (unanswered.length) {
+        alert(`Unanswered: ${unanswered.map((n) => n + 1).join(", ")}`);
+        goToQuestion(unanswered[0]);
+      } else alert("All questions answered.");
+    }
+
+    function showAutoSubmitModal(onConfirm) {
+      const modal = document.createElement("div");
+      modal.innerHTML = `
+        <div style="position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:9999;">
+          <div style="background:#fff;padding:2em;border-radius:10px;max-width:400px;text-align:center;box-shadow:0 0 20px #0003;">
+            <h4 style="color:#d9534f;">Auto-Submission Notice</h4>
+            <p>Because you switched tab or window, the quiz has been auto-submitted for anti-cheating protection.<br>
+            Please try again genuinely.<br><b>This dialog will remain until you click OK.</b></p>
+            <button id="autoSubmitOkBtn" class="btn btn-danger mt-2">OK</button>
+          </div>
+        </div>`;
+      document.body.appendChild(modal);
+      document.getElementById("autoSubmitOkBtn").addEventListener("click", () => {
+        modal.remove();
+        if (onConfirm) onConfirm();
+      });
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      {% if quiz_mode == 'take' %}
+      setInterval(updateTimer, 1000);
+      goToQuestion(0);
+      document.querySelectorAll('input[type="radio"],input[type="checkbox"]').forEach((input) => {
+        input.addEventListener("change", () => {
+          const idx = input.name.replace("question_", "");
+          document.querySelectorAll(`[data-question="${idx}"] .choice-option`).forEach((o) =>
+            o.classList.remove("selected")
+          );
+          document.querySelectorAll(`[data-question="${idx}"] input:checked`).forEach((chk) =>
+            chk.closest(".choice-option").classList.add("selected")
+          );
+          updateQuestionNavigation();
+          updateProgress();
+        });
+      });
+      updateQuestionNavigation();
+      updateProgress();
+      {% endif %}
+    });
+  </script>
+  {% set guard_form_selector = '#quiz-form' %}
+  {% set guard_context_label = 'quiz' %}
+  {% include '_strict_tab_open_guard.html' %}
+  {% endif %}
+</body>
+</html>

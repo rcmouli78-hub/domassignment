@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Add Quiz Question - KDM LAB</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <style>
+        .card {
+            border-radius: 15px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+        .btn-gradient {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            color: white;
+        }
+        .btn-gradient:hover {
+            background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+            color: white;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="container mt-3">
+        {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    <div class="container py-4">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header bg-success text-white">
+                        <h4 class="mb-0">
+                            <i class="fas fa-plus me-2"></i>Add New Quiz Question
+                        </h4>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST">
+                            <div class="row mb-3">
+                                <div class="col-md-3">
+                                    <label for="slno" class="form-label">Serial No.</label>
+                                    <input type="number" class="form-control" id="slno" name="slno" 
+                                           placeholder="e.g., 1" min="1">
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="question" class="form-label">
+                                    <i class="fas fa-question-circle me-1"></i>Question Text *
+                                </label>
+                                <textarea class="form-control" id="question" name="question" rows="3" 
+                                          placeholder="Enter the question text here..." required></textarea>
+                            </div>
+
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="option_a" class="form-label">
+                                        <i class="fas fa-circle me-1"></i>Option A *
+                                    </label>
+                                    <textarea class="form-control" id="option_a" name="option_a" rows="2" 
+                                              placeholder="Enter option A..." required></textarea>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="option_b" class="form-label">
+                                        <i class="fas fa-circle me-1"></i>Option B *
+                                    </label>
+                                    <textarea class="form-control" id="option_b" name="option_b" rows="2" 
+                                              placeholder="Enter option B..." required></textarea>
+                                </div>
+                            </div>
+
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="option_c" class="form-label">
+                                        <i class="fas fa-circle me-1"></i>Option C *
+                                    </label>
+                                    <textarea class="form-control" id="option_c" name="option_c" rows="2" 
+                                              placeholder="Enter option C..." required></textarea>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="option_d" class="form-label">
+                                        <i class="fas fa-circle me-1"></i>Option D *
+                                    </label>
+                                    <textarea class="form-control" id="option_d" name="option_d" rows="2" 
+                                              placeholder="Enter option D..." required></textarea>
+                                </div>
+                            </div>
+
+                            <div class="mb-4">
+                                <label for="correct_answer" class="form-label">
+                                    <i class="fas fa-check-circle me-1 text-success"></i>Correct Answer *
+                                </label>
+                                <select class="form-select" id="correct_answer" name="correct_answer" required>
+                                    <option value="">Select the correct answer...</option>
+                                    <option value="A">A</option>
+                                    <option value="B">B</option>
+                                    <option value="C">C</option>
+                                    <option value="D">D</option>
+                                </select>
+                            </div>
+
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-gradient">
+                                    <i class="fas fa-save me-2"></i>Save Question
+                                </button>
+                                <a href="{{ url_for('kdm_lab_quiz_question_management') }}" class="btn btn-secondary">
+                                    <i class="fas fa-times me-2"></i>Cancel
+                                </a>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

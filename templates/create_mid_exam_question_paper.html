@@ -1,0 +1,118 @@
+{% extends "base_admin.html" %}
+{% block content %}
+<h2>Create MID Exam Question Paper</h2>
+<a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary mb-3">
+  ⬅ Back to Admin Dashboard
+</a>
+
+<form method="post">
+  <div class="form-group mb-3">
+    <label for="mid_type"><strong>Select MID Exam</strong></label>
+    <select name="mid_type" id="mid_type" class="form-control" required>
+      <option value="MID-I">MID-I</option>
+      <option value="MID-II">MID-II</option>
+    </select>
+  </div>
+  <div class="form-group mb-3">
+    <label for="cos"><strong>COs to Cover (comma separated, e.g. 1,2,3)</strong></label>
+    <input type="text" name="cos" id="cos" class="form-control" required />
+  </div>
+  <div id="co-fields"></div>
+  <button type="button" class="btn btn-info mb-3" onclick="generateCOFields()">
+    Set CO Details
+  </button>
+  <button type="submit" class="btn btn-primary">Preview Question Paper</button>
+</form>
+
+{% if preview_data %}
+<div class="card mt-4">
+  <div class="card-header"><strong>Question Paper Preview</strong></div>
+  <div class="card-body">
+    <p><strong>MID Type:</strong> {{ preview_data.mid_type }}</p>
+    <p><strong>COs:</strong> {{ preview_data.cos|join(', ') }}</p>
+    <ul>
+      {% for q in preview_data.questions %}
+        <li>
+          <strong>CO{{ q.co }}</strong><br>
+
+          Main ({{ q.main_marks }}M):<br>
+          {% for mq in q.main %}
+            {% if mq.marks %}
+              • {{ mq.question_text }} ({{ mq.marks }}M, BL={{ mq.bloom_level }}, PI={{ mq.pi_level }})<br>
+            {% else %}
+              <span class="text-danger">{{ mq.question_text }}</span><br>
+            {% endif %}
+          {% endfor %}
+          <br>
+
+          Choice ({{ q.choice_marks }}M):<br>
+          {% for cq in q.choice %}
+            {% if cq.marks %}
+              • {{ cq.question_text }} ({{ cq.marks }}M, BL={{ cq.bloom_level }}, PI={{ cq.pi_level }})<br>
+            {% else %}
+              <span class="text-danger">{{ cq.question_text }}</span><br>
+            {% endif %}
+          {% endfor %}
+
+          <br><small class="text-muted">{{ q.debug }}</small>
+        </li>
+
+      {% endfor %}
+    </ul>
+
+
+    <form method="post" action="{{ url_for('download_mid_exam_question_paper') }}">
+      <button type="submit" class="btn btn-success">
+        Download This Question Paper (.docx)
+      </button>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+
+<script>
+function generateCOFields() {
+  var cos = document.getElementById("cos").value.split(",");
+  var container = document.getElementById("co-fields");
+  container.innerHTML = "";
+  cos.forEach(function (co) {
+    co = co.trim();
+    if (co) {
+      container.innerHTML += `
+        <div class="card mb-2 p-2">
+          <h5>CO${co}</h5>
+          <div class="row mb-2">
+            <div class="col">
+              <label>Main Question: Subdivisions</label>
+              <select name="main_subdivisions_${co}" class="form-control" required>
+                <option value="1">Single Question</option>
+                <option value="2">Multiple Questions</option>
+              </select>
+            </div>
+            <div class="col">
+              <label>Main Question: Marks</label>
+              <input type="number" name="main_marks_${co}" class="form-control" min="1" required>
+            </div>
+          </div>
+          <div class="row mb-2">
+            <div class="col">
+              <label>Choice Question: Subdivisions</label>
+              <select name="choice_subdivisions_${co}" class="form-control" required>
+                <option value="1">Single Question</option>
+                <option value="2">Multiple Questions</option>
+              </select>
+            </div>
+            <div class="col">
+              <label>Choice Question: Marks</label>
+              <input type="number" name="choice_marks_${co}" class="form-control" min="1" required>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+  });
+}
+</script>
+
+{% endblock %}

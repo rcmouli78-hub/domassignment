@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Manage Internal Quiz - KDM LAB</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+    />
+    <style>
+      .card {
+        border-radius: 15px;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+      }
+      .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
+      }
+      .btn-gradient {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        color: white;
+      }
+      .btn-gradient:hover {
+        background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+        color: white;
+      }
+      .status-badge {
+        font-size: 1.1em;
+        padding: 0.5rem 1rem;
+      }
+    </style>
+  </head>
+  <body class="bg-light">
+    {% with messages = get_flashed_messages(with_categories=true) %} {% if
+    messages %}
+    <div class="container mt-3">
+      {% for category, message in messages %}
+      <div
+        class="alert alert-{{ category }} alert-dismissible fade show"
+        role="alert"
+      >
+        {{ message }}
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="alert"
+        ></button>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %} {% endwith %}
+
+    <div class="container py-4">
+      <div class="row justify-content-center">
+        <div class="col-md-10">
+          <div class="card">
+            <div class="card-header bg-primary text-white">
+              <h4 class="mb-0">
+                <i class="fas fa-cogs me-2"></i>Manage Internal Quiz
+              </h4>
+            </div>
+            <div class="card-body">
+              <div class="row mb-4">
+                <div class="col-md-3">
+                  <div class="card bg-light">
+                    <div class="card-body text-center">
+                      <i
+                        class="fas fa-question-circle fa-2x text-info mb-2"
+                      ></i>
+                      <h5>{{ questions_count }}</h5>
+                      <p class="mb-0">Total Questions</p>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-3">
+                  <div class="card bg-light">
+                    <div class="card-body text-center">
+                      <i class="fas fa-clock fa-2x text-warning mb-2"></i>
+                      <h5>{{ quiz_settings.quiz_duration_minutes }}</h5>
+                      <p class="mb-0">Minutes</p>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-3">
+                  <div class="card bg-light">
+                    <div class="card-body text-center">
+                      <i class="fas fa-list-ol fa-2x text-success mb-2"></i>
+                      <h5>{{ quiz_settings.questions_per_quiz }}</h5>
+                      <p class="mb-0">Questions Per Quiz</p>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-3">
+                  <div class="card bg-light">
+                    <div class="card-body text-center">
+                      <i class="fas fa-users fa-2x text-primary mb-2"></i>
+                      <h5>{{ attempts_count }}</h5>
+                      <p class="mb-0">Student Attempts</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Quiz Configuration Display -->
+              <div class="row mb-4">
+                <div class="col-md-6">
+                  <div class="card bg-info text-white">
+                    <div class="card-body text-center">
+                      <i class="fas fa-list-ol fa-2x mb-2"></i>
+                      <h5>{{ quiz_settings.questions_per_quiz }}</h5>
+                      <p class="mb-0">Questions per Quiz</p>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="card bg-primary text-white">
+                    <div class="card-body text-center">
+                      <i class="fas fa-clock fa-2x mb-2"></i>
+                      <h5>{{ quiz_settings.quiz_duration_minutes }} min</h5>
+                      <p class="mb-0">Quiz Duration</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="row mb-4">
+                <div class="col-md-12">
+                  <div
+                    class="card {% if quiz_settings.is_quiz_released %}border-success{% else %}border-warning{% endif %}"
+                  >
+                    <div class="card-body text-center">
+                      <h5>Quiz Status</h5>
+                      {% if quiz_settings.is_quiz_released %}
+                      <span class="badge bg-success status-badge">
+                        <i class="fas fa-unlock me-2"></i>RELEASED - Students
+                        can take the quiz
+                      </span>
+                      {% else %}
+                      <span class="badge bg-warning status-badge">
+                        <i class="fas fa-lock me-2"></i>LOCKED - Quiz is hidden
+                        from students
+                      </span>
+                      {% endif %}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="text-center mb-4">
+                <form
+                  method="POST"
+                  action="{{ url_for('kdm_lab_toggle_quiz_release') }}"
+                  style="display: inline"
+                >
+                  {% if quiz_settings.is_quiz_released %}
+                  <button
+                    type="submit"
+                    class="btn btn-warning btn-lg me-3"
+                    onclick="return confirm('This will lock the quiz from students. Continue?')"
+                  >
+                    <i class="fas fa-lock me-2"></i>Lock Quiz
+                  </button>
+                  {% else %}
+                  <button
+                    type="submit"
+                    class="btn btn-success btn-lg me-3"
+                    onclick="return confirm('This will release the quiz to students. Continue?')"
+                    {%
+                    if
+                    questions_count
+                    <
+                    quiz_settings.questions_per_quiz
+                    %}disabled
+                    title="Need at least {{ quiz_settings.questions_per_quiz }} questions to release quiz"
+                    {%
+                    endif
+                    %}
+                  >
+                    <i class="fas fa-unlock me-2"></i>Release Quiz
+                  </button>
+                  {% endif %}
+                </form>
+              </div>
+
+              {% if questions_count < quiz_settings.questions_per_quiz %}
+              <div class="alert alert-danger">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <strong>Warning:</strong> You need at least {{
+                quiz_settings.questions_per_quiz }} questions to create quizzes.
+                Currently you have {{ questions_count }} questions.
+              </div>
+              {% endif %}
+
+              <div class="d-flex gap-2 justify-content-center">
+                <a
+                  href="{{ url_for('kdm_lab_quiz_settings') }}"
+                  class="btn btn-info"
+                >
+                  <i class="fas fa-cogs me-2"></i>Quiz Settings
+                </a>
+                <a
+                  href="{{ url_for('kdm_lab_individual_quiz_releases') }}"
+                  class="btn btn-warning"
+                  title="Manage individual student quiz releases"
+                >
+                  <i class="fas fa-users-cog me-2"></i>Individual Releases
+                </a>
+                <a
+                  href="{{ url_for('kdm_lab_upload_quiz_questions') }}"
+                  class="btn btn-gradient"
+                >
+                  <i class="fas fa-upload me-2"></i>Upload More Questions
+                </a>
+                <a
+                  href="{{ url_for('kdm_lab_admin_dashboard') }}"
+                  class="btn btn-secondary"
+                >
+                  <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  </body>
+</html>

@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>My Consolidated Internal Marks</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
+  <style>
+    .marks-card {
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .marks-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+    .marks-value {
+      font-size: 2rem;
+      font-weight: bold;
+    }
+    .final-marks {
+      background: linear-gradient(135deg, #28a745, #20c997);
+      color: white;
+    }
+  </style>
+</head>
+<body class="bg-light">
+  <div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h2 class="text-primary mb-0">
+        <i class="fas fa-user-graduate"></i> My Consolidated Internal Marks
+      </h2>
+      <a href="{{ url_for('student_dashboard') }}" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left"></i> Back to Dashboard
+      </a>
+    </div>
+
+    {% if data %}
+    {% set student_data = data[0] %}
+    
+    <div class="card shadow-lg">
+      <div class="card-header bg-primary text-white">
+        <div class="d-flex justify-content-between align-items-center">
+          <span>
+            <i class="fas fa-id-card"></i> Student: {{ student_data['Roll Number'] }}
+          </span>
+          <small>Internal Assessment Breakdown</small>
+        </div>
+      </div>
+
+      <div class="card-body">
+        <div class="row g-4 mb-4">
+          <!-- MID-I Marks -->
+          <div class="col-md-6 col-lg-3">
+            <div class="card marks-card border-info h-100">
+              <div class="card-body text-center">
+                <div class="mb-3">
+                  <i class="fas fa-edit fa-3x text-info"></i>
+                </div>
+                <h6 class="card-title text-info">MID-I Marks</h6>
+                <div class="marks-value text-info">{{ student_data['MID-I Marks (20)'] }}</div>
+                <small class="text-muted">out of 20</small>
+                <div class="mt-2">
+                  <small class="badge bg-info">First Mid Exam</small>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- MID-II Marks -->
+          <div class="col-md-6 col-lg-3">
+            <div class="card marks-card border-warning h-100">
+              <div class="card-body text-center">
+                <div class="mb-3">
+                  <i class="fas fa-pen-fancy fa-3x text-warning"></i>
+                </div>
+                <h6 class="card-title text-warning">MID-II Marks</h6>
+                <div class="marks-value text-warning">{{ student_data['MID-II Marks (20)'] }}</div>
+                <small class="text-muted">out of 20</small>
+                <div class="mt-2">
+                  <small class="badge bg-warning">Second Mid Exam</small>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Average of MIDs -->
+          <div class="col-md-6 col-lg-3">
+            <div class="card marks-card border-primary h-100">
+              <div class="card-body text-center">
+                <div class="mb-3">
+                  <i class="fas fa-calculator fa-3x text-primary"></i>
+                </div>
+                <h6 class="card-title text-primary">Average of MIDs</h6>
+                <div class="marks-value text-primary">{{ student_data['Average of MIDs'] }}</div>
+                <small class="text-muted">weighted average</small>
+                <div class="mt-2">
+                  <small class="badge bg-primary">Theory Component</small>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Assignment Marks -->
+          <div class="col-md-6 col-lg-3">
+            <div class="card marks-card border-secondary h-100">
+              <div class="card-body text-center">
+                <div class="mb-3">
+                  <i class="fas fa-tasks fa-3x text-secondary"></i>
+                </div>
+                <h6 class="card-title text-secondary">Assignment Marks</h6>
+                <div class="marks-value text-secondary">{{ student_data['Assignment Marks (10)'] }}</div>
+                <small class="text-muted">out of 10</small>
+                <div class="mt-2">
+                  <small class="badge bg-secondary">Practical Work</small>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="row g-4 mb-4">
+          <!-- Quiz Marks -->
+          <div class="col-md-4">
+            <div class="card marks-card border-dark h-100">
+              <div class="card-body text-center">
+                <div class="mb-3">
+                  <i class="fas fa-question-circle fa-3x text-dark"></i>
+                </div>
+                <h6 class="card-title text-dark">Quiz Marks</h6>
+                <div class="marks-value text-dark">{{ student_data['Quiz Marks (5)'] }}</div>
+                <small class="text-muted">out of 5</small>
+                <div class="mt-2">
+                  <small class="badge bg-dark">Quick Assessment</small>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Attendance Marks -->
+          <div class="col-md-4">
+            <div class="card marks-card border-success h-100">
+              <div class="card-body text-center">
+                <div class="mb-3">
+                  <i class="fas fa-calendar-check fa-3x text-success"></i>
+                </div>
+                <h6 class="card-title text-success">Attendance Marks</h6>
+                <div class="marks-value text-success">{{ student_data['Attendance Marks (5)'] }}</div>
+                <small class="text-muted">out of 5</small>
+                <div class="mt-2">
+                  <small class="badge bg-success">Class Participation</small>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Final Internal Marks -->
+          <div class="col-md-4">
+            <div class="card marks-card final-marks h-100">
+              <div class="card-body text-center">
+                <div class="mb-3">
+                  <i class="fas fa-trophy fa-3x text-white"></i>
+                </div>
+                <h6 class="card-title text-white">Final Internal Marks</h6>
+                <div class="marks-value text-white">{{ student_data['Final Internal Marks (40)'] }}</div>
+                <small class="text-white-50">out of 40</small>
+                <div class="mt-2">
+                  <small class="badge bg-light text-success">Total Score</small>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Summary Table -->
+        <div class="mt-4">
+          <div class="card">
+            <div class="card-header bg-light">
+              <h6 class="mb-0">
+                <i class="fas fa-table"></i> Marks Summary
+              </h6>
+            </div>
+            <div class="card-body">
+              <table class="table table-bordered table-hover">
+                <thead class="table-dark text-center">
+                  <tr>
+                    <th>Component</th>
+                    <th>Marks Obtained</th>
+                    <th>Maximum Marks</th>
+                    <th>Percentage</th>
+                  </tr>
+                </thead>
+                <tbody class="text-center">
+                  <tr>
+                    <td><strong>MID-I Marks</strong></td>
+                    <td>{{ student_data['MID-I Marks (20)'] }}</td>
+                    <td>20</td>
+                    <td>
+                      {% if student_data['MID-I Marks (20)'] != "N/A" %}
+                        {{ "%.1f"|format((student_data['MID-I Marks (20)']|float / 20 * 100)) }}%
+                      {% else %}
+                        N/A
+                      {% endif %}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td><strong>MID-II Marks</strong></td>
+                    <td>{{ student_data['MID-II Marks (20)'] }}</td>
+                    <td>20</td>
+                    <td>
+                      {% if student_data['MID-II Marks (20)'] != "N/A" %}
+                        {{ "%.1f"|format((student_data['MID-II Marks (20)']|float / 20 * 100)) }}%
+                      {% else %}
+                        N/A
+                      {% endif %}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td><strong>Average of MIDs</strong></td>
+                    <td>{{ student_data['Average of MIDs'] }}</td>
+                    <td>20</td>
+                    <td>
+                      {% if student_data['Average of MIDs'] != "N/A" %}
+                        {{ "%.1f"|format((student_data['Average of MIDs']|float / 20 * 100)) }}%
+                      {% else %}
+                        N/A
+                      {% endif %}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td><strong>Assignment Marks</strong></td>
+                    <td>{{ student_data['Assignment Marks (10)'] }}</td>
+                    <td>10</td>
+                    <td>
+                      {% if student_data['Assignment Marks (10)'] != "N/A" %}
+                        {{ "%.1f"|format((student_data['Assignment Marks (10)']|float / 10 * 100)) }}%
+                      {% else %}
+                        N/A
+                      {% endif %}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td><strong>Quiz Marks</strong></td>
+                    <td>{{ student_data['Quiz Marks (5)'] }}</td>
+                    <td>5</td>
+                    <td>
+                      {% if student_data['Quiz Marks (5)'] != "N/A" %}
+                        {{ "%.1f"|format((student_data['Quiz Marks (5)']|float / 5 * 100)) }}%
+                      {% else %}
+                        N/A
+                      {% endif %}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td><strong>Attendance Marks</strong></td>
+                    <td>{{ student_data['Attendance Marks (5)'] }}</td>
+                    <td>5</td>
+                    <td>
+                      {% if student_data['Attendance Marks (5)'] != "N/A" %}
+                        {{ "%.1f"|format((student_data['Attendance Marks (5)']|float / 5 * 100)) }}%
+                      {% else %}
+                        N/A
+                      {% endif %}
+                    </td>
+                  </tr>
+                  <tr class="table-success">
+                    <td><strong>Final Internal Marks</strong></td>
+                    <td><strong>{{ student_data['Final Internal Marks (40)'] }}</strong></td>
+                    <td><strong>40</strong></td>
+                    <td>
+                      {% if student_data['Final Internal Marks (40)'] != "N/A" %}
+                        <strong>{{ "%.1f"|format((student_data['Final Internal Marks (40)']|float / 40 * 100)) }}%</strong>
+                      {% else %}
+                        <strong>N/A</strong>
+                      {% endif %}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Information Panel -->
+        <div class="mt-4">
+          <div class="alert alert-info">
+            <h6><i class="fas fa-info-circle"></i> How Your Marks Are Calculated</h6>
+            <ul class="mb-0">
+              <li><strong>MID-I & MID-II:</strong> Mid-semester examination marks (uploaded by instructor)</li>
+              <li><strong>Average of MIDs:</strong> Calculated as (2/3) × best_mid + (1/3) × other_mid</li>
+              <li><strong>Assignment Marks:</strong> Based on your performance in Dynamic Assignments</li>
+              <li><strong>Quiz Marks:</strong> Based on your best quiz attempt scores</li>
+              <li><strong>Attendance Marks:</strong> Class participation and attendance (uploaded by instructor)</li>
+              <li><strong>Final Internal Marks:</strong> Sum of Average MIDs + Assignment + Quiz + Attendance</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {% else %}
+    <div class="alert alert-warning text-center">
+      <i class="fas fa-exclamation-triangle"></i>
+      No marks data available yet. Please check back later.
+    </div>
+    {% endif %}
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

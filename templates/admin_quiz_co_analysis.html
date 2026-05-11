@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Quiz CO Analysis - Admin Dashboard</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+      .co-card {
+        border-left: 4px solid #007bff;
+        margin-bottom: 1rem;
+      }
+      .stats-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+      }
+      .chart-container {
+        height: 400px;
+        position: relative;
+      }
+      .student-row:hover {
+        background-color: #f8f9fa;
+      }
+      .performance-badge {
+        font-size: 0.8rem;
+      }
+      .toggle-buttons {
+        margin-bottom: 1rem;
+      }
+      .summary-stats {
+        background-color: #f8f9fa;
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container-fluid py-4">
+      <div class="row">
+        <div class="col-12">
+          <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2><i class="fas fa-chart-bar me-2"></i>Quiz CO Analysis</h2>
+            <div>
+              <a
+                href="{{ url_for('admin_quiz_co_csv_download') }}"
+                class="btn btn-success me-2"
+              >
+                <i class="fas fa-download me-1"></i>Download Excel
+              </a>
+              <a href="{{ url_for('admin_co_analysis') }}" class="btn btn-info">
+                <i class="fas fa-tasks me-1"></i>Assignment CO Analysis
+              </a>
+              <a
+                href="{{ url_for('admin_dashboard') }}"
+                class="btn btn-secondary"
+              >
+                <i class="fas fa-arrow-left me-1"></i>Back to Dashboard
+              </a>
+            </div>
+          </div>
+
+          <!-- Summary Statistics -->
+          <div class="summary-stats">
+            <div class="row text-center">
+              <div class="col-md-3">
+                <div class="card stats-card">
+                  <div class="card-body">
+                    <h4>{{ total_students }}</h4>
+                    <p class="mb-0">Total Students</p>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-3">
+                <div class="card stats-card">
+                  <div class="card-body">
+                    <h4>{{ "%.1f"|format(avg_score) }}%</h4>
+                    <p class="mb-0">Average Score</p>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-3">
+                <div class="card stats-card">
+                  <div class="card-body">
+                    <h4>{{ students_passed }}</h4>
+                    <p class="mb-0">Passed (≥60%)</p>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-3">
+                <div class="card stats-card">
+                  <div class="card-body">
+                    <h4>{{ "%.1f"|format(pass_percentage) }}%</h4>
+                    <p class="mb-0">Pass Rate</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Toggle Buttons -->
+          <div class="toggle-buttons">
+            <div class="btn-group" role="group">
+              <button
+                type="button"
+                class="btn btn-outline-primary active"
+                onclick="showView('overview')"
+              >
+                <i class="fas fa-chart-pie me-1"></i>Overview
+              </button>
+              <button
+                type="button"
+                class="btn btn-outline-primary"
+                onclick="showView('co-analysis')"
+              >
+                <i class="fas fa-chart-bar me-1"></i>CO Analysis
+              </button>
+              <button
+                type="button"
+                class="btn btn-outline-primary"
+                onclick="showView('student-performance')"
+              >
+                <i class="fas fa-users me-1"></i>Student Performance
+              </button>
+              <button
+                type="button"
+                class="btn btn-outline-primary"
+                onclick="showView('quiz-details')"
+              >
+                <i class="fas fa-clipboard-list me-1"></i>Quiz Details
+              </button>
+            </div>
+          </div>
+
+          <!-- Overview Section -->
+          <div id="overview-section" class="view-section">
+            <div class="row">
+              <div class="col-md-6">
+                <div class="card">
+                  <div class="card-header">
+                    <h5>
+                      <i class="fas fa-chart-pie me-2"></i>Quiz Performance
+                      Distribution
+                    </h5>
+                  </div>
+                  <div class="card-body">
+                    <div class="chart-container">
+                      <canvas id="performanceChart"></canvas>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="card">
+                  <div class="card-header">
+                    <h5>
+                      <i class="fas fa-chart-line me-2"></i>Attempt Distribution
+                    </h5>
+                  </div>
+                  <div class="card-body">
+                    <div class="chart-container">
+                      <canvas id="attemptChart"></canvas>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- CO Analysis Section -->
+          <div
+            id="co-analysis-section"
+            class="view-section"
+            style="display: none"
+          >
+            <div class="row">
+              {% for co, data in co_analysis.items() %}
+              <div class="col-md-6 mb-4">
+                <div class="card co-card">
+                  <div
+                    class="card-header d-flex justify-content-between align-items-center"
+                  >
+                    <h5 class="mb-0">{{ co }}</h5>
+                    <span
+                      class="badge bg-{{ 'success' if data.average_percentage >= 60 else 'warning' if data.average_percentage >= 40 else 'danger' }} performance-badge"
+                    >
+                      {{ "%.1f"|format(data.average_percentage) }}% Average
+                    </span>
+                  </div>
+                  <div class="card-body">
+                    <div class="row">
+                      <div class="col-6">
+                        <div class="text-center">
+                          <h6>Total Questions</h6>
+                          <span class="badge bg-primary"
+                            >{{ data.total_questions }}</span
+                          >
+                        </div>
+                      </div>
+                      <div class="col-6">
+                        <div class="text-center">
+                          <h6>Max Marks</h6>
+                          <span class="badge bg-info"
+                            >{{ data.max_marks }}</span
+                          >
+                        </div>
+                      </div>
+                    </div>
+                    <hr />
+                    <div class="row">
+                      <div class="col-4">
+                        <div class="text-center">
+                          <small>Excellent (≥80%)</small>
+                          <div class="h5 text-success">
+                            {{ data.excellent_count }}
+                          </div>
+                        </div>
+                      </div>
+                      <div class="col-4">
+                        <div class="text-center">
+                          <small>Good (60-79%)</small>
+                          <div class="h5 text-warning">
+                            {{ data.good_count }}
+                          </div>
+                        </div>
+                      </div>
+                      <div class="col-4">
+                        <div class="text-center">
+                          <small>Needs Improvement (&lt;60%)</small>
+                          <div class="h5 text-danger">
+                            {{ data.poor_count }}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="progress mt-3">
+                      <div
+                        class="progress-bar bg-{{ 'success' if data.average_percentage >= 60 else 'warning' if data.average_percentage >= 40 else 'danger' }}"
+                        style="width: {{ data.average_percentage }}%"
+                      >
+                        {{ "%.1f"|format(data.average_percentage) }}%
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+
+            <!-- CO Comparison Chart -->
+            <div class="card mt-4">
+              <div class="card-header">
+                <h5>
+                  <i class="fas fa-chart-bar me-2"></i>CO Performance Comparison
+                </h5>
+              </div>
+              <div class="card-body">
+                <div class="chart-container">
+                  <canvas id="coComparisonChart"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Student Performance Section -->
+          <div
+            id="student-performance-section"
+            class="view-section"
+            style="display: none"
+          >
+            <div class="card">
+              <div class="card-header">
+                <h5>
+                  <i class="fas fa-users me-2"></i>Individual Student
+                  Performance
+                </h5>
+              </div>
+              <div class="card-body">
+                <div class="table-responsive">
+                  <table class="table table-hover">
+                    <thead class="table-light">
+                      <tr>
+                        <th>Roll No</th>
+                        <th>Attempts</th>
+                        <th>Best Score</th>
+                        <th>Overall %</th>
+                        <th>CO1 %</th>
+                        <th>CO2 %</th>
+                        <th>CO3 %</th>
+                        <th>CO4 %</th>
+                        <th>CO5 %</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for student in student_performance %}
+                      <tr class="student-row">
+                        <td><strong>{{ student.rollnumber }}</strong></td>
+                        <td>
+                          {{ student.best_score }}/{{ student.max_score }}
+                        </td>
+                        <td>
+                          <span class="badge bg-secondary"
+                            >{{ student.attempts }}</span
+                          >
+                        </td>
+                        <td>
+                          <div class="progress" style="height: 20px">
+                            <div
+                              class="progress-bar bg-{{ 'success' if student.percentage >= 60 else 'warning' if student.percentage >= 40 else 'danger' }}"
+                              style="width: {{ student.percentage }}%"
+                            >
+                              {{ "%.1f"|format(student.percentage) }}%
+                            </div>
+                          </div>
+                        </td>
+                        {% for co in ['CO1', 'CO2', 'CO3', 'CO4', 'CO5'] %}
+                        <td>
+                          {% if student.co_performance[co] and
+                          student.co_performance[co].percentage %}
+                          <span
+                            class="badge bg-{{ 'success' if student.co_performance[co].percentage >= 60 else 'warning' if student.co_performance[co].percentage >= 40 else 'danger' }}"
+                          >
+                            {{
+                            "%.0f"|format(student.co_performance[co].percentage)
+                            }}%
+                          </span>
+                          {% else %}
+                          <span class="badge bg-light text-dark">N/A</span>
+                          {% endif %}
+                        </td>
+                        {% endfor %}
+                        <td>
+                          {% if student.attempts == 0 %}
+                          <span class="badge bg-secondary">Not Attempted</span>
+                          {% elif student.percentage >= 60 %}
+                          <span class="badge bg-success">Passed</span>
+                          {% else %}
+                          <span class="badge bg-danger">Failed</span>
+                          {% endif %}
+                        </td>
+                      </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quiz Details Section -->
+          <div
+            id="quiz-details-section"
+            class="view-section"
+            style="display: none"
+          >
+            <div class="card">
+              <div class="card-header">
+                <h5>
+                  <i class="fas fa-clipboard-list me-2"></i>Quiz Question Bank
+                  Summary
+                </h5>
+              </div>
+              <div class="card-body">
+                <div class="row">
+                  {% for co, count in question_bank_stats.items() %}
+                  <div class="col-md-2 mb-3">
+                    <div class="card text-center">
+                      <div class="card-body">
+                        <h6>{{ co }}</h6>
+                        <h4 class="text-primary">{{ count }}</h4>
+                        <small>Questions</small>
+                      </div>
+                    </div>
+                  </div>
+                  {% endfor %}
+                </div>
+              </div>
+            </div>
+
+            <div class="card mt-4">
+              <div class="card-header">
+                <h5><i class="fas fa-history me-2"></i>Recent Quiz Attempts</h5>
+              </div>
+              <div class="card-body">
+                <div class="table-responsive">
+                  <table class="table">
+                    <thead class="table-light">
+                      <tr>
+                        <th>Student</th>
+                        <th>Total Attempts</th>
+                        <th>Best Score</th>
+                        <th>Percentage</th>
+                        <th>Completed At</th>
+                        <th>Duration</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for attempt in recent_attempts %}
+                      <tr>
+                        <td>{{ attempt.user.rollnumber }}</td>
+                        <td>{{ attempt.attempts }}</td>
+                        <td>
+                          {{ attempt.best_score }}/{{ attempt.max_score }}
+                        </td>
+                        <td>
+                          <span
+                            class="badge bg-{{ 'success' if attempt.percentage >= 60 else 'warning' if attempt.percentage >= 40 else 'danger' }}"
+                          >
+                            {{ "%.1f"|format(attempt.percentage) }}%
+                          </span>
+                        </td>
+                        <td>
+                          {{ attempt.completed_at.strftime('%Y-%m-%d %H:%M') if
+                          attempt.completed_at else 'In Progress' }}
+                        </td>
+                        <td>
+                          {% if attempt.completed_at and attempt.started_at %}
+                          {% set duration = (attempt.completed_at -
+                          attempt.started_at).total_seconds() %} {{
+                          "%.0f"|format(duration/60) }} min {% else %} N/A {%
+                          endif %}
+                        </td>
+                      </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // Chart configurations and data
+      const chartColors = {
+          primary: '#007bff',
+          success: '#28a745',
+          warning: '#ffc107',
+          danger: '#dc3545',
+          info: '#17a2b8'
+      };
+
+      // Performance Distribution Chart
+      const performanceCtx = document.getElementById('performanceChart').getContext('2d');
+      new Chart(performanceCtx, {
+          type: 'doughnut',
+          data: {
+              labels: ['Excellent (≥80%)', 'Good (60-79%)', 'Average (40-59%)', 'Poor (<40%)', 'Not Attempted'],
+              datasets: [{
+                  data: {{ performance_distribution|tojson }},
+                  backgroundColor: [chartColors.success, chartColors.warning, chartColors.info, chartColors.danger, '#6c757d']
+              }]
+          },
+          options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                  legend: {
+                      position: 'bottom'
+                  }
+              }
+          }
+      });
+
+      // Attempt Distribution Chart
+      const attemptCtx = document.getElementById('attemptChart').getContext('2d');
+      new Chart(attemptCtx, {
+          type: 'bar',
+          data: {
+              labels: ['0 Attempts', '1 Attempt', '2 Attempts', '3+ Attempts'],
+              datasets: [{
+                  label: 'Number of Students',
+                  data: {{ attempt_distribution|tojson }},
+                  backgroundColor: chartColors.primary
+              }]
+          },
+          options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              scales: {
+                  y: {
+                      beginAtZero: true,
+                      ticks: {
+                          stepSize: 1
+                      }
+                  }
+              }
+          }
+      });
+
+      // CO Comparison Chart
+      const coCtx = document.getElementById('coComparisonChart').getContext('2d');
+      new Chart(coCtx, {
+          type: 'radar',
+          data: {
+              labels: {{ co_labels|tojson }},
+              datasets: [{
+                  label: 'Average Performance (%)',
+                  data: {{ co_percentages|tojson }},
+                  backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                  borderColor: 'rgba(54, 162, 235, 1)',
+                  pointBackgroundColor: 'rgba(54, 162, 235, 1)',
+                  pointBorderColor: '#fff',
+                  pointHoverBackgroundColor: '#fff',
+                  pointHoverBorderColor: 'rgba(54, 162, 235, 1)'
+              }]
+          },
+          options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              scales: {
+                  r: {
+                      angleLines: {
+                          display: false
+                      },
+                      suggestedMin: 0,
+                      suggestedMax: 100
+                  }
+              }
+          }
+      });
+
+      // View switching functionality
+      function showView(viewName) {
+          // Hide all sections
+          document.querySelectorAll('.view-section').forEach(section => {
+              section.style.display = 'none';
+          });
+
+          // Remove active class from all buttons
+          document.querySelectorAll('.btn-group .btn').forEach(btn => {
+              btn.classList.remove('active');
+          });
+
+          // Show selected section
+          document.getElementById(viewName + '-section').style.display = 'block';
+
+          // Add active class to clicked button
+          event.target.classList.add('active');
+      }
+    </script>
+  </body>
+</html>

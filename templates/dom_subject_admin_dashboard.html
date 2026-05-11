@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>DOM Subject Dashboard</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+    />
+    <!-- Google Fonts -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        font-family: "Poppins", sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        position: relative;
+      }
+
+      body::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: radial-gradient(
+            circle at 20% 50%,
+            rgba(102, 126, 234, 0.3) 0%,
+            transparent 50%
+          ),
+          radial-gradient(
+            circle at 80% 20%,
+            rgba(118, 75, 162, 0.3) 0%,
+            transparent 50%
+          ),
+          radial-gradient(
+            circle at 40% 80%,
+            rgba(116, 185, 255, 0.3) 0%,
+            transparent 50%
+          );
+        pointer-events: none;
+      }
+
+      .main-container {
+        position: relative;
+        z-index: 1;
+        padding: 2rem 0;
+      }
+
+      .dashboard-header {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border-radius: 20px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        position: relative;
+        overflow: hidden;
+      }
+
+      .dashboard-header::before {
+        content: "";
+        position: absolute;
+        top: -50px;
+        right: -50px;
+        width: 200px;
+        height: 200px;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        opacity: 0.1;
+        border-radius: 50%;
+      }
+
+      .dashboard-title {
+        color: #2c3e50;
+        font-weight: 700;
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+        position: relative;
+        z-index: 1;
+      }
+
+      .dashboard-subtitle {
+        color: #34495e;
+        font-weight: 500;
+        font-size: 1.1rem;
+        margin-bottom: 0;
+        position: relative;
+        z-index: 1;
+      }
+
+      .nav-section {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border-radius: 20px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 15px 30px rgba(0, 0, 0, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+      }
+
+      .section-title {
+        color: #2c3e50;
+        font-weight: 600;
+        font-size: 1.3rem;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .nav-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        padding: 1rem;
+        border-radius: 15px;
+        text-decoration: none;
+        color: white;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        border: none;
+        cursor: pointer;
+        min-height: 60px;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .nav-btn::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          rgba(255, 255, 255, 0.2),
+          transparent
+        );
+        transition: left 0.5s;
+      }
+
+      .nav-btn:hover::before {
+        left: 100%;
+      }
+
+      .nav-btn:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2) !important;
+        color: white;
+        text-decoration: none;
+      }
+
+      .nav-btn i {
+        font-size: 1.1rem;
+      }
+
+      .back-btn {
+        background: linear-gradient(135deg, #636e72, #2d3436);
+        color: white;
+        box-shadow: 0 6px 15px rgba(99, 110, 114, 0.3);
+        margin-bottom: 1rem;
+      }
+
+      .dom-btn-primary {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        box-shadow: 0 6px 15px rgba(102, 126, 234, 0.3);
+      }
+
+      .dom-btn-quiz {
+        background: linear-gradient(135deg, #74b9ff, #0984e3);
+        box-shadow: 0 6px 15px rgba(116, 185, 255, 0.3);
+      }
+
+      .dom-btn-manage {
+        background: linear-gradient(135deg, #fdcb6e, #e17055);
+        box-shadow: 0 6px 15px rgba(253, 203, 110, 0.3);
+      }
+
+      .dom-btn-exam {
+        background: linear-gradient(135deg, #fd79a8, #e84393);
+        box-shadow: 0 6px 15px rgba(253, 121, 168, 0.3);
+      }
+
+      .dom-btn-paper {
+        background: linear-gradient(135deg, #e17055, #d63031);
+        box-shadow: 0 6px 15px rgba(225, 112, 85, 0.3);
+      }
+
+      /* Enhanced table styling for better responsiveness */
+      .student-table-container {
+        background: white;
+        border-radius: 15px;
+        overflow: hidden;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        max-width: 100%;
+      }
+
+      .student-table-responsive {
+        overflow-x: auto;
+        overflow-y: visible;
+        max-height: 70vh;
+        border-radius: 15px;
+        scrollbar-width: thin;
+        scrollbar-color: #667eea #f1f1f1;
+      }
+
+      .student-table-responsive::-webkit-scrollbar {
+        height: 8px;
+        width: 8px;
+      }
+
+      .student-table-responsive::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 10px;
+      }
+
+      .student-table-responsive::-webkit-scrollbar-thumb {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        border-radius: 10px;
+      }
+
+      .student-table-responsive::-webkit-scrollbar-thumb:hover {
+        background: linear-gradient(135deg, #764ba2, #667eea);
+      }
+
+      .student-table {
+        min-width: 1400px; /* Ensure minimum width for all columns */
+        margin-bottom: 0;
+      }
+
+      .student-table th {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background: linear-gradient(135deg, #667eea, #764ba2) !important;
+        color: white !important;
+        border: none;
+        font-weight: 500;
+        font-size: 0.9rem;
+        padding: 12px 8px;
+        text-align: center;
+        white-space: nowrap;
+        min-width: 80px;
+      }
+
+      .student-table th:first-child,
+      .student-table th:nth-child(2) {
+        min-width: 100px; /* ID and Roll Number */
+      }
+
+      .student-table th:nth-child(3) {
+        min-width: 120px; /* Password */
+      }
+
+      .student-table th:nth-child(4),
+      .student-table th:nth-child(5) {
+        min-width: 150px; /* Email and Phone */
+      }
+
+      .student-table th:last-child {
+        min-width: 200px; /* Actions column */
+        position: sticky;
+        right: 0;
+        background: linear-gradient(135deg, #667eea, #764ba2) !important;
+        box-shadow: -2px 0 5px rgba(0,0,0,0.1);
+      }
+
+      .student-table td {
+        padding: 8px;
+        font-size: 0.85rem;
+        text-align: center;
+        vertical-align: middle;
+        border-bottom: 1px solid rgba(0,0,0,0.05);
+        white-space: nowrap;
+      }
+
+      .student-table td:last-child {
+        position: sticky;
+        right: 0;
+        background: white;
+        box-shadow: -2px 0 5px rgba(0,0,0,0.1);
+        z-index: 5;
+      }
+
+      .student-table tbody tr:hover {
+        background-color: rgba(102, 126, 234, 0.05);
+      }
+
+      .student-table tbody tr:hover td:last-child {
+        background-color: rgba(102, 126, 234, 0.05);
+      }
+
+      .action-buttons {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 180px;
+      }
+
+      .action-buttons .btn {
+        font-size: 0.7rem;
+        padding: 4px 8px;
+        border-radius: 6px;
+        border: none;
+        transition: all 0.2s ease;
+      }
+
+      .action-buttons .btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+      }
+
+      /* Responsive adjustments */
+      @media (max-width: 1200px) {
+        .student-table {
+          min-width: 1600px; /* Even wider on smaller screens to ensure readability */
+        }
+      }
+
+      @media (max-width: 768px) {
+        .student-table-responsive {
+          max-height: 60vh;
+        }
+
+        .student-table th,
+        .student-table td {
+          font-size: 0.8rem;
+          padding: 6px 4px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container main-container">
+      <!-- Header -->
+      <div class="dashboard-header text-center">
+        <h1 class="dashboard-title">
+          <i class="fas fa-graduation-cap me-2"></i>DOM Subject Dashboard
+        </h1>
+        <p class="dashboard-subtitle">
+          Dynamics of Machinery Portal
+        </p>
+      </div>
+
+      <!-- Back Button -->
+      <div class="nav-section">
+        <div class="row">
+          <div class="col-lg-3 col-md-4 col-sm-6">
+            <a
+              href="{{ url_for('admin_dashboard') }}"
+              class="nav-btn w-100 back-btn"
+            >
+              <i class="fas fa-arrow-left"></i>Back to Main Dashboard
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- DOM Subject Actions -->
+      <div class="nav-section">
+        <h4 class="section-title">
+          <i class="fas fa-tasks"></i>Assignment & Portal Management
+        </h4>
+        <div class="row g-3">
+          <div class="col-lg-6 col-md-6">
+            <a
+              href="{{ url_for('admin_assignment_view') }}"
+              class="nav-btn w-100 dom-btn-primary"
+            >
+              <i class="fas fa-user-graduate"></i>DOM Assignment Portal
+            </a>
+          </div>
+          <div class="col-lg-6 col-md-6">
+            <a
+              href="{{ url_for('take_quiz') }}"
+              class="nav-btn w-100 dom-btn-quiz"
+            >
+              <i class="fas fa-clipboard-question"></i>Take Quiz
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quiz Management Section -->
+      <div class="nav-section">
+        <h4 class="section-title">
+          <i class="fas fa-clipboard-list"></i>Quiz Release Management
+        </h4>
+        <div class="row g-3">
+          <div class="col-lg-4 col-md-6">
+            <form
+              method="POST"
+              action="{{ url_for('toggle_quiz_release') }}"
+              class="w-100"
+            >
+              {% if quiz_released %}
+              <button type="submit" class="nav-btn w-100 dom-btn-paper">
+                <i class="fas fa-lock"></i>Lock Quiz
+              </button>
+              {% else %}
+              <button type="submit" class="nav-btn w-100 dom-btn-quiz">
+                <i class="fas fa-unlock"></i>Release Quiz
+              </button>
+              {% endif %}
+            </form>
+          </div>
+
+          <div class="col-lg-4 col-md-6">
+            <a
+              href="{{ url_for('dom_subject_individual_quiz_releases') }}"
+              class="nav-btn w-100 dom-btn-manage"
+            >
+              <i class="fas fa-user-check"></i>Individual Releases
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Question Management Section -->
+      {% if (current_admin.admin_level == 'super_admin' and not
+      session.get('impersonating')) or (current_admin.admin_level == 'admin' and
+      allow_admin_add_question) %}
+      <div class="nav-section">
+        <h4 class="section-title">
+          <i class="fas fa-question-circle"></i>Question & Exam Management
+        </h4>
+        <div class="row g-3">
+          <div class="col-lg-4 col-md-6">
+            <a
+              href="{{ url_for('quiz_question_management') }}"
+              class="nav-btn w-100 dom-btn-manage"
+            >
+              <i class="fas fa-cogs"></i>Manage Quiz Questions
+            </a>
+          </div>
+
+          <div class="col-lg-4 col-md-6">
+            <a
+              href="{{ url_for('mid_exam_questions') }}"
+              class="nav-btn w-100 dom-btn-exam"
+            >
+              <i class="fas fa-database"></i>MID Exam Bank
+            </a>
+          </div>
+
+          <div class="col-lg-4 col-md-6">
+            <a
+              href="{{ url_for('create_mid_exam_question_paper') }}"
+              class="nav-btn w-100 dom-btn-paper"
+            >
+              <i class="fas fa-file-alt"></i>Create Paper
+            </a>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Student Management Section -->
+      <div class="nav-section">
+        <div
+          style="
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 1.5rem;
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+          "
+        >
+          <h4 class="section-title">
+            <i class="fas fa-users me-2"></i>
+            {% if current_admin.admin_level == 'super_admin' %} All Students {%
+            else %} My Assigned Students {% endif %}
+          </h4>
+          <small style="opacity: 0.7; color: #666"
+            >Monitor student progress and manage DOM subject assignments</small
+          >
+
+          <div class="mt-3">
+            <div class="student-table-container">
+              <div class="student-table-responsive">
+                <!-- 🔍 Search by Roll Number -->
+                <div class="mb-3 text-end">
+                  <input
+                    type="text"
+                    id="domRollSearch"
+                    class="form-control form-control-sm"
+                    style="max-width: 250px; display: inline-block;"
+                    placeholder="Search by Roll Number..."
+                  />
+                </div>
+
+                <table id="domStudentTable" class="table student-table table-hover mb-0">
+
+                  <thead>
+                    <tr>
+                    <th class="fw-bold">
+                      <a
+                        href="{{ url_for('dom_subject_admin_dashboard', sort_by='id', sort_order='desc' if current_sort == 'id' and current_order == 'asc' else 'asc') }}"
+                        class="text-white text-decoration-none"
+                      >
+                        ID {% if current_sort == 'id' %} {% if current_order ==
+                        'asc' %}<i class="fas fa-sort-up"></i>{% else %}<i
+                          class="fas fa-sort-down"
+                        ></i
+                        >{% endif %} {% else %}<i class="fas fa-sort"></i>{%
+                        endif %}
+                      </a>
+                    </th>
+                    <th class="fw-bold">
+                      <a
+                        href="{{ url_for('dom_subject_admin_dashboard', sort_by='rollnumber', sort_order='desc' if current_sort == 'rollnumber' and current_order == 'asc' else 'asc') }}"
+                        class="text-white text-decoration-none"
+                      >
+                        Roll Number {% if current_sort == 'rollnumber' %} {% if
+                        current_order == 'asc' %}<i class="fas fa-sort-up"></i
+                        >{% else %}<i class="fas fa-sort-down"></i>{% endif %}
+                        {% else %}<i class="fas fa-sort"></i>{% endif %}
+                      </a>
+                    </th>
+
+                    <th class="fw-bold">
+                      <a
+                        href="{{ url_for('dom_subject_admin_dashboard', sort_by='completed', sort_order='desc' if current_sort == 'completed' and current_order == 'asc' else 'asc') }}"
+                        class="text-white text-decoration-none"
+                      >
+                        Completed {% if current_sort == 'completed' %} {% if
+                        current_order == 'asc' %}<i class="fas fa-sort-up"></i
+                        >{% else %}<i class="fas fa-sort-down"></i>{% endif %}
+                        {% else %}<i class="fas fa-sort"></i>{% endif %}
+                      </a>
+                    </th>
+                    <th class="fw-bold">
+                      <a
+                        href="{{ url_for('dom_subject_admin_dashboard', sort_by='marks', sort_order='desc' if current_sort == 'marks' and current_order == 'asc' else 'asc') }}"
+                        class="text-white text-decoration-none"
+                      >
+                        Total Score {% if current_sort == 'marks' %} {% if
+                        current_order == 'asc' %}<i class="fas fa-sort-up"></i
+                        >{% else %}<i class="fas fa-sort-down"></i>{% endif %}
+                        {% else %}<i class="fas fa-sort"></i>{% endif %}
+                      </a>
+                    </th>
+                    <th class="fw-bold">P1 (S/A)</th>
+                    <th class="fw-bold">P2 (S/A)</th>
+                    <th class="fw-bold">P3 (S/A)</th>
+                    <th class="fw-bold">P4 (S/A)</th>
+                    <th class="fw-bold">P5 (S/A)</th>
+                    <th class="fw-bold">P6 (S/A)</th>
+                    <th class="fw-bold">P7 (S/A)</th>
+                    <th class="fw-bold">P8 (S/A)</th>
+                    <th class="fw-bold">P9 (S/A)</th>
+                    <th class="fw-bold">P10 (S/A)</th>
+                    <th class="fw-bold">P11 (S/A)</th>
+                    <th class="fw-bold">Quiz (S/A)</th>
+                    <th class="fw-bold">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for u in users %}
+                  <tr>
+                    <td>{{ u.id }}</td>
+                    <td><strong>{{ u.rollnumber }}</strong></td>
+
+                    <td>
+                      <span class="badge bg-primary"
+                        >{{ u.completed_problems_count }}</span
+                      >
+                    </td>
+                    <td>
+                      <span class="badge bg-success">{{ u.marks or 0 }}</span>
+                    </td>
+                    <td class="small">
+                      {{ u.p1_score or 0 }}/{{ u.p1_attempts or 0 }}
+                    </td>
+                    <td class="small">
+                      {{ u.p2_score or 0 }}/{{ u.p2_attempts or 0 }}
+                    </td>
+                    <td class="small">
+                      {{ u.p3_score or 0 }}/{{ u.p3_attempts or 0 }}
+                    </td>
+                    <td class="small">
+                      {{ u.p4_score or 0 }}/{{ u.p4_attempts or 0 }}
+                    </td>
+                    <td class="small">
+                      {{ u.p5_score or 0 }}/{{ u.p5_attempts or 0 }}
+                    </td>
+                    <td class="small">
+                      {{ u.p6_score or 0 }}/{{ u.p6_attempts or 0 }}
+                    </td>
+                    <td class="small">
+                      {{ u.p7_score or 0 }}/{{ u.p7_attempts or 0 }}
+                    </td>
+                    <td class="small">
+                      {{ u.p8_score or 0 }}/{{ u.p8_attempts or 0 }}
+                    </td>
+                    <td class="small">
+                      {{ u.p9_score or 0 }}/{{ u.p9_attempts or 0 }}
+                    </td>
+                    <td class="small">
+                      {{ u.p10_score or 0 }}/{{ u.p10_attempts or 0 }}
+                    </td>
+                    <td class="small">
+                      {{ u.p11_score or 0 }}/{{ u.p11_attempts or 0 }}
+                    </td>
+                    <td class="small">
+                      <span class="badge bg-info"
+                        >{{ u.quiz_best_score or 0 }}</span
+                      >/{{ u.quiz_attempts_count or 0 }}
+                    </td>
+                    <td>
+                      <div class="btn-group-vertical btn-group-sm" role="group">
+                        <a
+                          href="{{ url_for('edit_user', user_id=u.id) }}"
+                          class="btn btn-outline-warning btn-sm"
+                        >
+                          <i class="fas fa-edit"></i> Edit
+                        </a>
+                        <form
+                          action="{{ url_for('reset_user', user_id=u.id) }}"
+                          method="POST"
+                          style="display: inline"
+                        >
+                          <button
+                            type="submit"
+                            class="btn btn-outline-info btn-sm w-100"
+                            onclick="return confirm('Reset all progress for {{ u.rollnumber }}?');"
+                          >
+                            <i class="fas fa-redo"></i> Reset
+                          </button>
+                        </form>
+                        <form
+                          action="{{ url_for('reset_user_quiz', user_id=u.id) }}"
+                          method="POST"
+                          style="display: inline"
+                        >
+                          <button
+                            type="submit"
+                            class="btn btn-outline-secondary btn-sm w-100"
+                            onclick="return confirm('Reset quiz attempts for {{ u.rollnumber }}?');"
+                          >
+                            <i class="fas fa-clipboard-list"></i> Reset Quiz
+                          </button>
+                        </form>
+                        <form
+                          action="{{ url_for('delete_user', user_id=u.id) }}"
+                          method="POST"
+                          style="display: inline"
+                        >
+                          <button
+                            type="submit"
+                            class="btn btn-outline-danger btn-sm w-100"
+                            onclick="return confirm('Delete user {{ u.rollnumber }}?');"
+                          >
+                            <i class="fas fa-trash"></i> Delete
+                          </button>
+                        </form>
+                      </div>
+                    </td>
+                  </tr>
+                  {% endfor %} {% if not users %}
+                  <tr>
+                    <td colspan="19" class="text-center py-4">
+                      <div class="alert alert-info mb-0">
+                        <i class="fas fa-info-circle"></i>
+                        {% if current_admin.admin_level == 'super_admin' %} No
+                        students found in the system. {% else %} No students
+                        assigned to you yet. Ask the super admin to assign roll
+                        numbers to your account. {% endif %}
+                      </div>
+                    </td>
+                  </tr>
+                  {% endif %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Statistics Section (Optional - can add DOM-related stats here) -->
+      <div class="nav-section">
+        <h4 class="section-title">
+          <i class="fas fa-chart-bar"></i>DOM Subject Statistics
+        </h4>
+        <div class="row g-3">
+          <div class="col-lg-3 col-md-6">
+            <div class="nav-btn w-100 dom-btn-primary" style="cursor: default">
+              <i class="fas fa-users"></i>
+              <div>
+                <small>Total Students</small><br />
+                <strong>{{ total_students or 0 }}</strong>
+              </div>
+            </div>
+          </div>
+          <div class="col-lg-3 col-md-6">
+            <div class="nav-btn w-100 dom-btn-quiz" style="cursor: default">
+              <i class="fas fa-question"></i>
+              <div>
+                <small>Quiz Questions</small><br />
+                <strong>{{ total_quiz_questions or 0 }}</strong>
+              </div>
+            </div>
+          </div>
+          <div class="col-lg-3 col-md-6">
+            <div class="nav-btn w-100 dom-btn-exam" style="cursor: default">
+              <i class="fas fa-file-medical"></i>
+              <div>
+                <small>Exam Questions</small><br />
+                <strong>{{ total_exam_questions or 0 }}</strong>
+              </div>
+            </div>
+          </div>
+          <div class="col-lg-3 col-md-6">
+            <div class="nav-btn w-100 dom-btn-paper" style="cursor: default">
+              <i class="fas fa-chart-line"></i>
+              <div>
+                <small>Assignments</small><br />
+                <strong>11 Problems</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Problem Release Control Section -->
+      <div class="nav-section">
+        <h4 class="section-title">
+          <i class="fas fa-lock"></i>Problem Release Control
+        </h4>
+        <div class="alert" style="background: rgba(116, 185, 255, 0.1); border: 1px solid rgba(116, 185, 255, 0.3); color: #0984e3; border-radius: 10px;">
+          {% if current_admin.admin_level == 'super_admin' %}
+          <i class="fas fa-crown"></i> <strong>Super Admin:</strong> You are releasing problems globally for all students.
+          {% else %}
+          <i class="fas fa-users"></i> <strong>Sub Admin:</strong> You are releasing problems only for your assigned students.
+          {% endif %}
+        </div>
+
+        <div class="row g-3">
+          {% for problem_num in range(1, 12) %}
+          <div class="col-lg-4 col-md-6 col-sm-6">
+            <div class="nav-section" style="padding: 1rem; margin-bottom: 0;">
+              <div class="text-center">
+                <h6 class="mb-3">
+                  <i class="fas fa-code"></i> Problem {{ problem_num }}
+                  {% if problem_visibility[problem_num] %}
+                  <span class="badge bg-success ms-2">
+                    <i class="fas fa-unlock"></i> Released
+                  </span>
+                  {% else %}
+                  <span class="badge bg-warning ms-2">
+                    <i class="fas fa-lock"></i> Locked
+                  </span>
+                  {% endif %}
+                </h6>
+
+                <form action="{{ url_for('toggle_problem_release', problem_number=problem_num) }}" method="POST" class="w-100">
+                  {% if problem_visibility[problem_num] %}
+                  <button type="submit" class="nav-btn w-100 dom-btn-paper">
+                    <i class="fas fa-lock"></i> Lock Problem
+                  </button>
+                  {% else %}
+                  <button type="submit" class="nav-btn w-100 dom-btn-quiz">
+                    <i class="fas fa-unlock"></i> Release Problem
+                  </button>
+                  {% endif %}
+                </form>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Course Outcome (CO) Management Section -->
+      <div class="nav-section">
+        <h4 class="section-title">
+          <i class="fas fa-chart-line"></i>Course Outcome (CO) Management
+        </h4>
+        <p class="text-muted mb-4">Track student performance across Course Outcomes (CO1-CO5) for both assignments and quiz</p>
+
+        <div class="row g-3">
+          {% if current_admin.admin_level == 'super_admin' %}
+          <div class="col-lg-3 col-md-6">
+            <a href="{{ url_for('admin_co_management') }}" class="nav-btn w-100 dom-btn-manage">
+              <i class="fas fa-cogs"></i> Manage CO Mappings
+            </a>
+          </div>
+          {% endif %}
+
+          <div class="col-lg-3 col-md-6">
+            <a href="{{ url_for('admin_co_analysis') }}" class="nav-btn w-100 dom-btn-quiz">
+              <i class="fas fa-analytics"></i> Assignment CO Analysis
+            </a>
+          </div>
+
+          <div class="col-lg-3 col-md-6">
+            <a href="{{ url_for('admin_quiz_co_analysis') }}" class="nav-btn w-100 dom-btn-exam">
+              <i class="fas fa-chart-bar"></i> Quiz CO Analysis
+            </a>
+          </div>
+
+          <div class="col-lg-3 col-md-6">
+            <a href="{{ url_for('admin_consolidated_marks') }}" class="nav-btn w-100 dom-btn-primary">
+              <i class="fas fa-table"></i> Consolidated Marks
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- System Controls Section -->
+      <div class="nav-section">
+        <h4 class="section-title">
+          <i class="fas fa-sliders-h"></i>System Controls
+        </h4>
+        <p class="text-muted mb-4">Manage system-wide DOM subject settings and data</p>
+
+        <div class="row g-3">
+          <div class="col-lg-4 col-md-6">
+            <form action="{{ url_for('release_all_problems_for_all_users') }}" method="POST" class="w-100">
+              <button type="submit" class="nav-btn w-100 dom-btn-quiz"
+                      {% if current_admin.admin_level == 'super_admin' %}
+                      onclick="return confirm('Release ALL problems for ALL users globally? This will make all 11 problems accessible to everyone!');"
+                      {% else %}
+                      onclick="return confirm('Release ALL problems for your assigned students? This will make all 11 problems accessible to them!');"
+                      {% endif %}>
+                <i class="fas fa-unlock-alt"></i>
+                {% if current_admin.admin_level == 'super_admin' %}
+                Release All Problems (Global)
+                {% else %}
+                Release All Problems (My Students)
+                {% endif %}
+              </button>
+            </form>
+          </div>
+
+          <div class="col-lg-4 col-md-6">
+            <form action="{{ url_for('lock_all_problems_for_all_users') }}" method="POST" class="w-100">
+              <button type="submit" class="nav-btn w-100 dom-btn-paper"
+                      {% if current_admin.admin_level == 'super_admin' %}
+                      onclick="return confirm('Lock ALL problems for ALL users globally? This will make all 11 problems inaccessible to everyone!');"
+                      {% else %}
+                      onclick="return confirm('Lock ALL problems for your assigned students? This will make all 11 problems inaccessible to them!');"
+                      {% endif %}>
+                <i class="fas fa-lock"></i>
+                {% if current_admin.admin_level == 'super_admin' %}
+                Lock All Problems (Global)
+                {% else %}
+                Lock All Problems (My Students)
+                {% endif %}
+              </button>
+            </form>
+          </div>
+
+          <div class="col-lg-4 col-md-6">
+            <form action="{{ url_for('reset_all_users') }}" method="POST" class="w-100">
+              <button type="submit" class="nav-btn w-100 dom-btn-manage"
+                      onclick="return confirm('Are you sure you want to reset ALL users? This will clear all DOM subject progress for everyone!');">
+                <i class="fas fa-undo-alt"></i> Reset All Users
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        const searchInput = document.getElementById("domRollSearch");
+        const table = document.getElementById("domStudentTable");
+        if (!table || !searchInput) return;
+
+        const tbody = table.querySelector("tbody");
+
+        searchInput.addEventListener("keyup", function () {
+          const filter = this.value.trim().toLowerCase();
+          const rows = tbody.getElementsByTagName("tr");
+
+          for (let i = 0; i < rows.length; i++) {
+            const cells = rows[i].getElementsByTagName("td");
+            if (cells.length > 0) {
+              const rollCell = cells[1]; // 2nd column = Roll Number
+              const text = (rollCell.textContent || rollCell.innerText).toLowerCase();
+              rows[i].style.display = text.includes(filter) ? "" : "none";
+            }
+          }
+        });
+      });
+    </script>
+
+  </body>
+</html>

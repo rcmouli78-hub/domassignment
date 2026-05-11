@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Upload Quiz Questions - KDM LAB</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+    />
+    <style>
+      .card {
+        border-radius: 15px;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+      }
+      .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
+      }
+      .btn-gradient {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        color: white;
+      }
+      .btn-gradient:hover {
+        background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+        color: white;
+      }
+    </style>
+  </head>
+  <body class="bg-light">
+    {% with messages = get_flashed_messages(with_categories=true) %} {% if
+    messages %}
+    <div class="container mt-3">
+      {% for category, message in messages %}
+      <div
+        class="alert alert-{{ category }} alert-dismissible fade show"
+        role="alert"
+      >
+        {{ message }}
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="alert"
+        ></button>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %} {% endwith %}
+
+    <div class="container py-4">
+      <div class="row justify-content-center">
+        <div class="col-md-8">
+          <div class="card">
+            <div class="card-header bg-primary text-white">
+              <h4 class="mb-0">
+                <i class="fas fa-upload me-2"></i>Upload Quiz Questions for
+                Internal Exam
+              </h4>
+            </div>
+            <div class="card-body">
+              <div class="row mb-4">
+                <div class="col-md-6">
+                  <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>Current Questions:</strong> {{ questions_count }}
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>Quiz Duration:</strong> 10 minutes
+                  </div>
+                </div>
+              </div>
+
+              <h5 class="mb-3">CSV File Requirements:</h5>
+              <div class="alert alert-light border">
+                <p class="mb-2">
+                  <strong>Required columns (flexible format accepted):</strong>
+                </p>
+                <ul class="mb-2">
+                  <li>
+                    <strong>Serial Number:</strong> <code>SlNo</code> or
+                    <code>slno</code> or <code>SNo</code>
+                  </li>
+                  <li>
+                    <strong>Question:</strong> <code>Question</code> or
+                    <code>questions</code>
+                  </li>
+                  <li>
+                    <strong>Options:</strong> <code>Option A</code>,
+                    <code>Option B</code>, <code>Option C</code>,
+                    <code>Option D</code><br />
+                    <small class="text-muted"
+                      >Also accepts: optiona, optionb, etc.</small
+                    >
+                  </li>
+                  <li>
+                    <strong>Answer:</strong> <code>Correct Answer</code> or
+                    <code>Answer</code> (A, B, C, or D)
+                  </li>
+                </ul>
+                <div class="alert alert-success mt-3 mb-0">
+                  <i class="fas fa-check-circle me-2"></i>
+                  <strong>Your current format is supported!</strong> The system
+                  will automatically detect column names.
+                </div>
+              </div>
+
+              <form method="POST" enctype="multipart/form-data">
+                <div class="mb-3">
+                  <label for="quiz_file" class="form-label">
+                    <i class="fas fa-file-csv me-2"></i>Select CSV File
+                  </label>
+                  <input
+                    type="file"
+                    class="form-control"
+                    id="quiz_file"
+                    name="quiz_file"
+                    accept=".csv"
+                    required
+                  />
+                  <div class="form-text">
+                    Upload a CSV file with quiz questions. Each student will get
+                    random questions based on quiz settings.
+                  </div>
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label">
+                    <i class="fas fa-cogs me-2"></i>Upload Mode
+                  </label>
+                  <div class="row">
+                    <div class="col-md-6">
+                      <div class="form-check">
+                        <input
+                          class="form-check-input"
+                          type="radio"
+                          name="upload_mode"
+                          id="replace_mode"
+                          value="replace"
+                          checked
+                        />
+                        <label class="form-check-label" for="replace_mode">
+                          <strong>Replace Existing Questions</strong><br />
+                          <small class="text-muted">Clear all your current questions and upload new ones</small>
+                        </label>
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <div class="form-check">
+                        <input
+                          class="form-check-input"
+                          type="radio"
+                          name="upload_mode"
+                          id="add_mode"
+                          value="add"
+                        />
+                        <label class="form-check-label" for="add_mode">
+                          <strong>Add to Existing Questions</strong><br />
+                          <small class="text-muted">Keep current questions and add new ones</small>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="alert alert-info">
+                  <i class="fas fa-info-circle me-2"></i>
+                  <strong>Note:</strong> 
+                  <span id="mode_note">Choose "Replace" to clear existing questions, or "Add" to keep them and append new questions.</span>
+                </div>
+
+                <div class="d-flex gap-2">
+                  <button type="submit" class="btn btn-gradient">
+                    <i class="fas fa-upload me-2"></i>Upload Questions
+                  </button>
+                  <a
+                    href="{{ url_for('kdm_lab_admin_dashboard') }}"
+                    class="btn btn-secondary"
+                  >
+                    <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+                  </a>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      // Update note text based on selected upload mode
+      const replaceMode = document.getElementById('replace_mode');
+      const addMode = document.getElementById('add_mode');
+      const modeNote = document.getElementById('mode_note');
+      
+      function updateNote() {
+        if (replaceMode.checked) {
+          modeNote.textContent = 'All your existing questions will be deleted and replaced with the new uploaded questions.';
+        } else {
+          modeNote.textContent = 'New questions will be added to your existing {{ questions_count }} questions.';
+        }
+      }
+      
+      replaceMode.addEventListener('change', updateNote);
+      addMode.addEventListener('change', updateNote);
+    </script>
+  </body>
+</html>

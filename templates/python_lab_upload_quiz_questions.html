@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Upload Python Lab Quiz Questions</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <style>
+        .module-card {
+            border-left: 4px solid #007bff;
+            transition: all 0.3s ease;
+        }
+        .module-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .upload-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="container mt-3">
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <div class="container py-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2 class="text-primary mb-0">
+                <i class="fas fa-upload"></i> Upload Python Lab Quiz Questions
+            </h2>
+            <div>
+                <a href="{{ url_for('python_lab_admin_dashboard') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Dashboard
+                </a>
+            </div>
+        </div>
+
+        <!-- Upload Form -->
+        <div class="card mb-4 upload-section">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-file-csv"></i> Upload Questions via CSV
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" enctype="multipart/form-data">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="module_number" class="form-label">Select Module</label>
+                            <select class="form-select" id="module_number" name="module_number" required>
+                                <option value="">Choose a module...</option>
+                                {% for module_num, module_name in modules.items() %}
+                                    <option value="{{ module_num }}">
+                                        Module {{ module_num }}: {{ module_name }} 
+                                        ({{ module_counts.get(module_num, 0) }} questions)
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="upload_mode" class="form-label">Upload Mode</label>
+                            <select class="form-select" id="upload_mode" name="upload_mode" required>
+                                <option value="add">Add to existing questions</option>
+                                <option value="replace">Replace all questions in module</option>
+                            </select>
+                            <div class="form-text text-light">
+                                <small><strong>Add:</strong> Appends to existing questions. <strong>Replace:</strong> Deletes all existing questions in module first.</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="csv_file" class="form-label">CSV File</label>
+                        <input type="file" class="form-control" id="csv_file" name="csv_file" accept=".csv" required>
+                        <div class="form-text text-light">
+                            Upload a CSV file with questions for the selected module.
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-light btn-lg">
+                        <i class="fas fa-upload"></i> Upload Questions
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- CSV Format Instructions -->
+        <div class="card mb-4">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-info-circle"></i> CSV Format Requirements
+                </h5>
+            </div>
+            <div class="card-body">
+                <p class="mb-3">Your CSV file must contain the following columns (case-sensitive):</p>
+                
+                <div class="table-responsive">
+                    <table class="table table-bordered">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Column Name</th>
+                                <th>Description</th>
+                                <th>Example</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>slno</code></td>
+                                <td>Serial number (optional, can be empty)</td>
+                                <td>1, 2, 3...</td>
+                            </tr>
+                            <tr>
+                                <td><code>question</code></td>
+                                <td>The question text</td>
+                                <td>Which of the following is a Python keyword?</td>
+                            </tr>
+                            <tr>
+                                <td><code>option_a</code></td>
+                                <td>Option A text</td>
+                                <td>variable</td>
+                            </tr>
+                            <tr>
+                                <td><code>option_b</code></td>
+                                <td>Option B text</td>
+                                <td>if</td>
+                            </tr>
+                            <tr>
+                                <td><code>option_c</code></td>
+                                <td>Option C text</td>
+                                <td>number</td>
+                            </tr>
+                            <tr>
+                                <td><code>option_d</code></td>
+                                <td>Option D text</td>
+                                <td>string</td>
+                            </tr>
+                            <tr>
+                                <td><code>correct_answer</code></td>
+                                <td>Correct answer (A, B, C, or D)</td>
+                                <td>B</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>Important Notes:</strong>
+                    <ul class="mb-0 mt-2">
+                        <li>Column names are case-sensitive and must match exactly</li>
+                        <li>Correct answer must be A, B, C, or D (uppercase)</li>
+                        <li>All text fields should be properly escaped if they contain commas or quotes</li>
+                        <li>The system will assign the selected module number to all questions in the CSV</li>
+                    </ul>
+                </div>
+
+                <div class="mt-3">
+                    <a href="{{ url_for('download_python_lab_template') }}" class="btn btn-success">
+                        <i class="fas fa-download"></i> Download CSV Template
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Current Module Status -->
+        <div class="mb-4">
+            <h4 class="text-secondary mb-3">
+                <i class="fab fa-python"></i> Current Question Count by Module
+            </h4>
+            <div class="row">
+                {% for module_num, module_name in modules.items() %}
+                    <div class="col-md-6 col-lg-4 mb-3">
+                        <div class="card h-100 module-card">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h5 class="card-title mb-1">Module {{ module_num }}</h5>
+                                        <h6 class="card-subtitle mb-2 text-muted">{{ module_name }}</h6>
+                                    </div>
+                                    <span class="badge bg-primary fs-6">
+                                        {{ module_counts.get(module_num, 0) }} questions
+                                    </span>
+                                </div>
+                                
+                                <div class="mt-3">
+                                    <div class="progress mb-2" style="height: 8px;">
+                                        {% set question_count = module_counts.get(module_num, 0) %}
+                                        {% set question_percentage = (question_count / 40 * 100) if question_count else 0 %}
+                                        <div 
+                                            class="progress-bar {% if question_percentage >= 100 %}bg-success{% elif question_percentage >= 50 %}bg-warning{% else %}bg-danger{% endif %}" 
+                                            role="progressbar" 
+                                            style="width: {{ question_percentage }}%"
+                                            aria-valuenow="{{ question_count }}" 
+                                            aria-valuemin="0" 
+                                            aria-valuemax="40"
+                                        ></div>
+                                    </div>
+                                    <small class="text-muted">Target: 40 questions per module</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Update upload mode description based on selection
+        document.getElementById('upload_mode').addEventListener('change', function() {
+            var mode = this.value;
+            var moduleSelect = document.getElementById('module_number');
+            var selectedModule = moduleSelect.options[moduleSelect.selectedIndex];
+            
+            if (mode === 'replace' && selectedModule.value) {
+                if (!confirm('Replace mode will DELETE ALL existing questions in the selected module. Are you sure?')) {
+                    this.value = 'add';
+                }
+            }
+        });
+
+        // Show confirmation for replace mode when module is selected
+        document.getElementById('module_number').addEventListener('change', function() {
+            var uploadMode = document.getElementById('upload_mode');
+            if (uploadMode.value === 'replace' && this.value) {
+                if (!confirm('Replace mode will DELETE ALL existing questions in Module ' + this.value + '. Continue?')) {
+                    uploadMode.value = 'add';
+                }
+            }
+        });
+    </script>
+</body>
+</html>

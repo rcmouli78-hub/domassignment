@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>DOM Subject Dashboard - Student</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+    />
+    <style>
+      body {
+        font-family: "Poppins", sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+      }
+
+      .container {
+        padding: 2rem 0;
+      }
+
+      .dashboard-card {
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 20px;
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+        backdrop-filter: blur(10px);
+        padding: 2rem;
+      }
+
+      .section-title {
+        color: #2c3e50;
+        font-weight: 600;
+        font-size: 1.3rem;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+      }
+
+      .section-title i {
+        margin-right: 0.5rem;
+        color: #667eea;
+      }
+
+      .problem-item {
+        border-radius: 15px;
+        margin-bottom: 0.75rem;
+        transition: all 0.3s ease;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+      }
+
+      .problem-available {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+      }
+
+      .problem-locked {
+        background: linear-gradient(135deg, #ffeaa7, #fdcb6e);
+        color: #2d3436;
+      }
+
+      .custom-progress-bar {
+        background: linear-gradient(90deg, #fdcb6e, #e17055);
+        border-radius: 15px;
+        text-align: center;
+        color: white;
+        font-weight: 600;
+        transition: width 0.5s ease;
+      }
+
+      .btn-back {
+        background: linear-gradient(135deg, #6c5ce7, #a29bfe);
+        border: none;
+        border-radius: 25px;
+        padding: 0.75rem 2rem;
+        color: white;
+        font-weight: 600;
+        transition: all 0.3s ease;
+      }
+
+      .btn-back:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(108, 92, 231, 0.4);
+      }
+
+      .quiz-summary-card {
+        background: rgba(255, 255, 255, 0.92);
+        border: 1px solid rgba(102, 126, 234, 0.15);
+        border-radius: 18px;
+        box-shadow: 0 10px 24px rgba(102, 126, 234, 0.12);
+        padding: 1.5rem;
+        height: 100%;
+      }
+
+      .quiz-summary-title {
+        color: #2c3e50;
+        font-weight: 600;
+        font-size: 1.1rem;
+      }
+
+      .quiz-status-badge {
+        border-radius: 999px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        padding: 0.4rem 0.8rem;
+      }
+
+      .quiz-stat-box {
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.08));
+        border-radius: 14px;
+        padding: 0.85rem;
+        text-align: center;
+      }
+
+      .quiz-stat-value {
+        color: #6c5ce7;
+        font-size: 1.1rem;
+        font-weight: 700;
+      }
+
+      .quiz-stat-label {
+        color: #636e72;
+        font-size: 0.85rem;
+      }
+
+      .quiz-meta {
+        color: #636e72;
+        font-size: 0.92rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="dashboard-card">
+        <h2 class="text-center mb-4">
+          <i class="fas fa-book-open me-2"></i>DYNAMICS OF MACHINERY (DOM)
+          - Student Dashboard
+        </h2>
+
+        <!-- 1. Assignment Problems -->
+        <h4 class="section-title">
+          <i class="fas fa-puzzle-piece"></i>Assignment Problems
+        </h4>
+        <div class="list-group mb-4">
+          {% for i in range(1,12) %}
+          {% set max_marks = get_max_marks_for_problem(i) %}
+          {% set current_score = user['p' ~ i ~ '_score'] or 0 %}
+          {% set attempts = user['p' ~ i ~ '_attempts'] or 0 %}
+          {% set is_released = problem_visibility[i] %}
+          {% if is_released %}
+          <a
+            href="{{ url_for('problem' ~ i) }}"
+            class="list-group-item list-group-item-action problem-item problem-available d-flex justify-content-between align-items-center"
+          >
+            <span>
+              <i class="fas fa-play-circle me-2"></i>Q{{ i }} - {{
+              get_problem_title(i) }}
+            </span>
+            <span class="badge bg-light text-dark">
+              {{ current_score }}/{{ max_marks }} marks
+            </span>
+          </a>
+          {% else %}
+          <span
+            class="list-group-item problem-item problem-locked d-flex justify-content-between align-items-center"
+          >
+            <span><i class="fas fa-lock me-2"></i>Q{{ i }} - {{
+              get_problem_title(i) }}</span>
+            <span class="badge bg-light text-dark">Locked</span>
+          </span>
+          {% endif %} {% endfor %}
+        </div>
+
+        <!-- 2. Overall Progress for Assignment -->
+        <h4 class="section-title">
+          <i class="fas fa-chart-line"></i>Overall Progress for Assignment
+        </h4>
+        <div class="mb-4">
+          {% set percentage = ((user.marks or 0) / total_max_marks * 100) if total_max_marks > 0 else 0 %}
+          <h5 class="text-center">
+            {{ user.marks or 0 }} / {{ total_max_marks }} marks
+          </h5>
+          <div class="progress" style="height: 25px; border-radius: 15px;">
+            <div
+              class="custom-progress-bar"
+              style="width: {{ percentage }}%;"
+            >
+              {{ "%.1f"|format(percentage) }}%
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. Quiz Assessment -->
+        <h4 class="section-title">
+          <i class="fas fa-clipboard-question"></i>Quiz Assessment
+        </h4>
+        {% if quiz_summaries %}
+        <div class="row g-3 mb-4">
+          {% for quiz in quiz_summaries %}
+          <div class="col-lg-6">
+            <div class="quiz-summary-card">
+              <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+                <div>
+                  <div class="quiz-summary-title">{{ quiz.quiz_title }}</div>
+                  <div class="quiz-meta">{{ quiz.quiz_name }}</div>
+                </div>
+                {% if quiz.released %}
+                <span class="badge bg-success quiz-status-badge">Released</span>
+                {% else %}
+                <span class="badge bg-warning text-dark quiz-status-badge">Locked</span>
+                {% endif %}
+              </div>
+
+              <div class="row g-2 mb-3">
+                <div class="col-4">
+                  <div class="quiz-stat-box">
+                    <div class="quiz-stat-value">{{ quiz.total_attempts }}</div>
+                    <div class="quiz-stat-label">Attempts Used</div>
+                  </div>
+                </div>
+                <div class="col-4">
+                  <div class="quiz-stat-box">
+                    <div class="quiz-stat-value">
+                      {% if quiz.best_attempt %}
+                      {{ quiz.best_attempt.score }}/{{ quiz.best_attempt.total_points }}
+                      {% else %}
+                      -
+                      {% endif %}
+                    </div>
+                    <div class="quiz-stat-label">Best Score</div>
+                  </div>
+                </div>
+                <div class="col-4">
+                  <div class="quiz-stat-box">
+                    <div class="quiz-stat-value">
+                      {% if quiz.remaining_attempts is not none %}
+                      {{ quiz.remaining_attempts }}
+                      {% else %}
+                      --
+                      {% endif %}
+                    </div>
+                    <div class="quiz-stat-label">Remaining</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="quiz-meta mb-3">
+                {% if quiz.active_attempt %}
+                <div><i class="fas fa-clock me-2"></i>An unfinished attempt is ready to resume.</div>
+                {% elif quiz.latest_attempt %}
+                <div>
+                  <i class="fas fa-history me-2"></i>Last completed:
+                  {{ quiz.latest_attempt.completed_at.strftime('%Y-%m-%d %H:%M') }}
+                </div>
+                {% else %}
+                <div><i class="fas fa-info-circle me-2"></i>No completed attempts yet.</div>
+                {% endif %}
+              </div>
+
+              <div class="d-flex flex-wrap gap-2">
+                {% if quiz.can_take %}
+                <a
+                  href="{{ url_for('take_quiz', quiz_name=quiz.quiz_name) }}"
+                  class="btn"
+                  style="
+                    background: linear-gradient(135deg, #a29bfe, #6c5ce7);
+                    color: white;
+                    border: none;
+                    border-radius: 12px;
+                  "
+                >
+                  <i class="fas fa-play me-2"></i>{% if quiz.active_attempt %}Resume Quiz{% else %}Start Quiz{% endif %}
+                </a>
+                {% endif %}
+
+                {% if quiz.best_attempt %}
+                <a
+                  href="{{ url_for('quiz_results', attempt_id=quiz.best_attempt.id) }}"
+                  class="btn btn-outline-primary"
+                  style="border-radius: 12px;"
+                >
+                  <i class="fas fa-eye me-2"></i>View Best Result
+                </a>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% elif quiz_released %}
+        <a
+          href="{{ url_for('take_quiz') }}"
+          class="btn btn-lg w-100 mb-4"
+          style="
+            background: linear-gradient(135deg, #a29bfe, #6c5ce7);
+            color: white;
+            border: none;
+            border-radius: 15px;
+          "
+        >
+          <i class="fas fa-question-circle me-2"></i>Start Quiz
+        </a>
+        {% else %}
+        <div
+          class="alert alert-warning rounded-4 border-0 mb-4"
+          style="background: linear-gradient(135deg, #ffeaa7, #fdcb6e)"
+        >
+          <i class="fas fa-lock me-2"></i>Quiz not yet released
+        </div>
+        {% endif %}
+
+        <!-- 4. Academic Performance -->
+        <h4 class="section-title">
+          <i class="fas fa-chart-line"></i>Academic Performance
+        </h4>
+        <a
+          href="{{ url_for('student_consolidated_marks') }}"
+          class="btn btn-lg w-100 mb-4"
+          style="
+            background: linear-gradient(135deg, #fd79a8, #e84393);
+            color: white;
+            border: none;
+            border-radius: 15px;
+          "
+        >
+          <i class="fas fa-chart-line me-2"></i>View My DOM Internal Marks
+        </a>
+
+        <!-- 5. Study Materials -->
+        {% if allow_student_mid_exam_questions %}
+        <h4 class="section-title">
+          <i class="fas fa-book"></i>Study Materials
+        </h4>
+        <a
+          href="{{ url_for('mid_exam_questions') }}"
+          class="btn btn-info btn-lg w-100 mb-4"
+          style="
+            background: linear-gradient(135deg, #74b9ff, #0984e3);
+            border: none;
+            border-radius: 15px;
+          "
+        >
+          <i class="fas fa-database me-2"></i>MID Exam Question Bank
+        </a>
+        {% endif %}
+
+        <!-- Back to Main Dashboard -->
+        <div class="text-center mt-4">
+          <a href="{{ url_for('student_dashboard') }}" class="btn btn-back">
+            <i class="fas fa-arrow-left me-2"></i>Back to Main Dashboard
+          </a>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

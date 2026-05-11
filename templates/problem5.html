@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Problem 5: Engine Force Analysis</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+  </head>
+  <body class="bg-light">
+    <div class="container py-5">
+      <div class="card shadow-lg p-4">
+        <h2 class="text-center text-primary mb-4">
+          Problem 5: Engine Force Analysis
+        </h2>
+
+        <p class="mb-4">
+          <strong>Crank radius:</strong> {{ vars.crank_radius*1000 }} mm <br />
+          <strong>Mass of reciprocating parts:</strong> {{ vars.mass }} kg
+          <br />
+          <strong>Crank angle:</strong> {{ vars.angle_theta }}° <br />
+          <strong>Pressure difference:</strong> {{ vars.P/1e6 }} N/mm² <br />
+          <strong>Connecting rod length:</strong> {{ vars.connecting_rod_length
+          }} m <br />
+          <strong>Cylinder bore:</strong> {{ vars.D*1000 }} mm <br />
+          <strong>Engine speed:</strong> {{ vars.engine_speed }} rpm
+        </p>
+
+        {% if feedback %}
+
+        <div class="alert alert-info">{{ feedback }}</div>
+
+        <div class="card mt-3">
+          <div class="card-header bg-success text-white">
+            <strong>Solution Steps</strong>
+          </div>
+          <div class="card-body">
+            {% set split_idx = steps.index('Steps:') if 'Steps:' in steps else 0
+            %} {% if split_idx > 0 %}
+            <ul>
+              {% for s in steps[:split_idx] %}
+              <li>{{ s }}</li>
+              {% endfor %}
+            </ul>
+            <ol>
+              {% for s in steps[split_idx+1:] %}
+              <li>{{ s }}</li>
+              {% endfor %}
+            </ol>
+            {% else %}
+            <ol>
+              {% for s in steps %}
+              <li>{{ s }}</li>
+              {% endfor %}
+            </ol>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="text-center mt-4">
+          <a
+            href="{% if user.role in ['admin', 'super_admin'] %}{{ url_for('admin_assignment_view') }}{% else %}{{ url_for('student_dashboard') }}{% endif %}"
+            class="btn btn-primary w-100"
+          >
+            Back to Dashboard
+          </a>
+        </div>
+
+        {% else %}
+        <!-- Check if user has exceeded attempts -->
+        {% if user and user.p5_attempts >= 2 and user.role not in ['admin',
+        'super_admin'] %}
+        <div class="alert alert-warning">
+          <h4>Maximum Attempts Reached</h4>
+          <p>
+            You have used all your attempts ({{ user.p5_attempts }}/2) for this
+            problem.
+          </p>
+          <p>Your best score: {{ user.p5_score }} points</p>
+          <a
+            href="{% if user.role in ['admin', 'super_admin'] %}{{ url_for('admin_assignment_view') }}{% else %}{{ url_for('student_dashboard') }}{% endif %}"
+            class="btn btn-primary"
+            >Back to Dashboard</a
+          >
+        </div>
+        {% else %}
+        <!-- Show form only if attempts available -->
+        {% if user %}
+        <div class="alert alert-info">
+          Attempts used: {{ user.p5_attempts }}/2 | Current score: {{
+          user.p5_score }} points
+        </div>
+        {% endif %}
+        <form method="POST">
+          <div class="mb-3">
+            <label class="form-label">Pressure on Slide Bars (FN) [N]:</label>
+            <input
+              type="number"
+              step="any"
+              class="form-control"
+              name="Answer_FN"
+              required
+            />
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Thrust in Connecting Rod (FQ) [N]:</label>
+            <input
+              type="number"
+              step="any"
+              class="form-control"
+              name="Answer_FQ"
+              required
+            />
+          </div>
+          <div class="mb-3">
+            <label class="form-label"
+              >Tangential Force on Crank Pin (FT) [N]:</label
+            >
+            <input
+              type="number"
+              step="any"
+              class="form-control"
+              name="Answer_FT"
+              required
+            />
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Turning Moment on Shaft (T) [Nm]:</label>
+            <input
+              type="number"
+              step="any"
+              class="form-control"
+              name="Answer_T"
+              required
+            />
+          </div>
+          <div class="text-center">
+            <button type="submit" class="btn btn-success w-50">
+              Submit Answer
+            </button>
+          </div>
+        </form>
+        {% endif %} {% endif %}
+      </div>
+    </div>
+
+    <!-- Include celebration animation if perfect first attempt -->
+    {% if show_celebration %} {% include 'celebration.html' %} {% endif %}
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  </body>
+  {% if user.role == 'student' %}
+  {% set guard_form_selector = 'form' %}
+  {% set guard_context_label = 'assignment' %}
+  {% include '_strict_tab_open_guard.html' %}
+  {% endif %}
+</html>

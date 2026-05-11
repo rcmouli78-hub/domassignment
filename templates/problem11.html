@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Problem 11 - Balancing of Rotating Masses</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+
+    <!-- MathJax config for inline $...$ -->
+    <script>
+      window.MathJax = {
+        tex: {
+          inlineMath: [
+            ["$", "$"],
+            ["\\(", "\\)"],
+          ],
+        },
+      };
+    </script>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script
+      id="MathJax-script"
+      async
+      src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"
+    ></script>
+  </head>
+  <body class="bg-light">
+    <div class="container py-5">
+      <div class="card shadow-lg p-4">
+        <h2 class="text-center text-primary">
+          Problem 11 - Balancing of Rotating Masses
+        </h2>
+
+        <div class="mt-4">
+          <h4 class="text-secondary">Given Data (randomized):</h4>
+          <div class="row">
+            <div class="col-md-6">
+              <p>
+                <strong>Masses (kg):</strong> {% for i in range(4) %} m<sub
+                  >{{ i+1 }}</sub
+                >
+                = {{ vars.m[i] }}{% if not loop.last %}, {% endif %} {% endfor
+                %}
+              </p>
+              <p>
+                <strong>Radii of rotation (m):</strong> {% for i in range(4) %}
+                r<sub>{{ i+1 }}</sub> = {{ vars.r[i] }}{% if not loop.last %},
+                {% endif %} {% endfor %}
+              </p>
+            </div>
+            <div class="col-md-6">
+              <p>
+                <strong>Angles between successive masses (°):</strong>
+                {% for angle in vars.angles %} {{ angle }}{% if not loop.last
+                %}, {% endif %} {% endfor %}
+              </p>
+              <p>
+                <strong>Balance mass radius:</strong> r<sub>b</sub> = {{ vars.rb
+                }} m
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-4 p-3 bg-info-light rounded">
+          <h4 class="text-secondary">Problem Statement:</h4>
+          <p>
+            Four rotating masses are arranged on a shaft at different angular
+            positions. Find the required <strong>balance mass</strong> and its
+            <strong>angular position</strong>
+            to completely balance the system. The balance mass is to be placed
+            at radius r<sub>b</sub>.
+          </p>
+        </div>
+
+        {% if feedback %}
+        <div class="alert alert-info">{{ feedback }}</div>
+
+        {% if steps %}
+        <!-- Step-by-step solution display -->
+        <div class="mt-4">
+          <h4 class="text-secondary">Step-by-Step Solution:</h4>
+          <div class="bg-light p-3 rounded">
+            {% for step in steps %}
+            <p class="mb-2">{{ step }}</p>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %} {% endif %}
+
+        <!-- Answer submission form -->
+        {% if show_inputs %}
+        <!-- Answer submission form -->
+        <div class="mt-4 p-3 border rounded bg-white">
+          <h4 class="text-secondary">Submit Your Answer:</h4>
+          <form method="post" class="row g-3">
+            <div class="col-md-6">
+              <label for="mb" class="form-label">
+                <strong>Balance mass (m<sub>b</sub>) in kg:</strong>
+              </label>
+              <input
+                type="number"
+                step="0.001"
+                class="form-control"
+                id="mb"
+                name="mb"
+                placeholder="Enter balance mass"
+                required
+              />
+              <small class="form-text text-muted"
+                >Round to 3 decimal places</small
+              >
+            </div>
+            <div class="col-md-6">
+              <label for="theta_b" class="form-label">
+                <strong
+                  >Balance mass position (θ<sub>b</sub>) in degrees:</strong
+                >
+              </label>
+              <input
+                type="number"
+                step="0.1"
+                class="form-control"
+                id="theta_b"
+                name="theta_b"
+                placeholder="Enter angular position"
+                required
+              />
+              <small class="form-text text-muted"
+                >Round to 1 decimal place</small
+              >
+            </div>
+            <div class="col-12">
+              <button type="submit" class="btn btn-success btn-lg">
+                Submit Answer
+              </button>
+            </div>
+          </form>
+        </div>
+        {% endif %}
+
+        <!-- User progress info -->
+        <div class="mt-4 p-3 bg-secondary-light rounded">
+          <div class="row">
+            <div class="col-md-4">
+              {% if user.role in ['admin', 'super_admin'] %}
+              <p>
+                <strong>Attempts:</strong> {{ user.p11_attempts }} (Unlimited)
+              </p>
+              {% elif user.p11_attempts >= 2 %}
+              <p><strong>Attempts:</strong> {{ user.p11_attempts }}/2</p>
+              {% endif %}
+            </div>
+            <div class="col-md-4">
+              <p><strong>Best Score:</strong> {{ user.p11_score }}/10</p>
+            </div>
+            <div class="col-md-4">
+              <p><strong>Total Score:</strong> {{ user.marks }}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Navigation -->
+        <div class="text-center mt-4">
+          <a
+            href="{% if user.role in ['admin', 'super_admin'] %}{{ url_for('admin_assignment_view') }}{% else %}{{ url_for('student_dashboard') }}{% endif %}"
+            class="btn btn-primary"
+            >Back to Dashboard</a
+          >
+        </div>
+
+        <!-- Bootstrap JS for better styling -->
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+      </div>
+    </div>
+  </body>
+  {% if user.role == 'student' %}
+  {% set guard_form_selector = 'form' %}
+  {% set guard_context_label = 'assignment' %}
+  {% include '_strict_tab_open_guard.html' %}
+  {% endif %}
+</html>

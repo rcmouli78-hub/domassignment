@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>My Python Lab Consolidated Marks</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+    />
+    <style>
+      body {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      }
+
+      .main-container {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border-radius: 20px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        margin: 2rem 0;
+      }
+
+      .header {
+        background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+        color: white;
+        border-radius: 20px 20px 0 0;
+        padding: 2rem;
+        text-align: center;
+      }
+
+      .marks-card {
+        background: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+        border-left: 4px solid #ff9800;
+      }
+
+      .score-display {
+        background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 2rem;
+        text-align: center;
+        box-shadow: 0 8px 16px rgba(33, 150, 243, 0.3);
+      }
+
+      .component-card {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        border-left: 4px solid #007bff;
+      }
+
+      .viva-highlight {
+        border-left-color: #28a745 !important;
+        background: linear-gradient(135deg, #e8f5e8 0%, #f0f8f0 100%);
+      }
+
+      .final-score {
+        background: linear-gradient(135deg, #4caf50 0%, #45a049 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 2rem;
+        text-align: center;
+        box-shadow: 0 8px 16px rgba(76, 175, 80, 0.3);
+      }
+
+      .quiz-attempt-card {
+        background: white;
+        border-radius: 10px;
+        padding: 1rem;
+        margin-bottom: 0.5rem;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+
+      .best-attempt {
+        border-left: 4px solid #ffc107;
+        background: linear-gradient(135deg, #fff8e1 0%, #fffbf0 100%);
+      }
+
+      .grade-badge {
+        font-size: 1.5rem;
+        padding: 0.5rem 1rem;
+        border-radius: 15px;
+        font-weight: bold;
+      }
+
+      .grade-a { background: #4caf50; color: white; }
+      .grade-b { background: #2196f3; color: white; }
+      .grade-c { background: #ff9800; color: white; }
+      .grade-d { background: #f44336; color: white; }
+      .grade-f { background: #9e9e9e; color: white; }
+    </style>
+  </head>
+  <body>
+    <div class="container py-4">
+      <div class="main-container">
+        <div class="header">
+          <h1><i class="fab fa-python"></i> My Python Lab Consolidated Marks</h1>
+          <h3>{{ student_marks["Full Name"] }} ({{ student_marks["Roll Number"] }})</h3>
+          <p class="mb-0">Complete internal assessment breakdown and performance analysis</p>
+        </div>
+
+        <div class="p-4">
+          <!-- Navigation -->
+          <div class="mb-4">
+            <a
+              href="{{ url_for('python_lab_student_dashboard') }}"
+              class="btn btn-secondary"
+            >
+              <i class="fas fa-arrow-left"></i> Back to Python Lab Dashboard
+            </a>
+          </div>
+
+          <!-- Final Score Display -->
+          <div class="row mb-4">
+            <div class="col-md-6">
+              <div class="final-score">
+                <h2>{{ student_marks["Final Internal Marks (50)"] }}/50</h2>
+                <p class="mb-0">Final Internal Marks</p>
+                {% if student_marks["Final Internal Marks (50)"] != "N/A" %}
+                {% set percentage = (student_marks["Final Internal Marks (50)"] * 100 / 50) %}
+                <small>{{ "%.1f" | format(percentage) }}%</small>
+                {% endif %}
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="score-display">
+                {% if student_marks["Final Internal Marks (50)"] != "N/A" %}
+                {% set percentage = (student_marks["Final Internal Marks (50)"] * 100 / 50) %}
+                {% set grade = "A" if percentage >= 80 else "B" if percentage >= 70 else "C" if percentage >= 60 else "D" if percentage >= 50 else "F" %}
+                <div class="grade-badge grade-{{ grade.lower() }}">{{ grade }}</div>
+                <h4 class="mt-2">Grade Obtained</h4>
+                {% else %}
+                <div class="grade-badge grade-f">N/A</div>
+                <h4 class="mt-2">Assessment Pending</h4>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+
+          <!-- Marks Breakdown -->
+          <div class="marks-card">
+            <h5 class="mb-3"><i class="fas fa-chart-pie"></i> Marks Breakdown</h5>
+            <div class="row">
+              <!-- Rubrics Marks -->
+              <div class="col-md-6 mb-3">
+                <div class="component-card">
+                  <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                      <h6 class="mb-1">Rubrics Assessment</h6>
+                      <small class="text-muted">Manual evaluation by instructor</small>
+                    </div>
+                    <div class="text-end">
+                      <h4 class="mb-0">{{ student_marks["Rubrics Marks (20)"] }}/20</h4>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Script Marks -->
+              <div class="col-md-6 mb-3">
+                <div class="component-card">
+                  <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                      <h6 class="mb-1">Script Evaluation</h6>
+                      <small class="text-muted">Manual evaluation by instructor</small>
+                    </div>
+                    <div class="text-end">
+                      <h4 class="mb-0">{{ student_marks["Script Marks (15)"] }}/15</h4>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Viva Marks -->
+              <div class="col-md-6 mb-3">
+                <div class="component-card viva-highlight">
+                  <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                      <h6 class="mb-1">Viva Voce (Quiz)</h6>
+                      <small class="text-muted">Best quiz attempt</small>
+                    </div>
+                    <div class="text-end">
+                      <h4 class="mb-0">{{ student_marks["Viva Marks (10)"] }}/10</h4>
+                      {% if best_attempt %}
+                      <small class="text-success">From {{ best_attempt.score }}% quiz score</small>
+                      {% endif %}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Attendance -->
+              <div class="col-md-6 mb-3">
+                <div class="component-card">
+                  <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                      <h6 class="mb-1">Attendance</h6>
+                      <small class="text-muted">Class attendance</small>
+                    </div>
+                    <div class="text-end">
+                      <h4 class="mb-0">{{ student_marks["Attendance Marks (5)"] }}/5</h4>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Total Internal Calculation -->
+            <div class="alert alert-info mt-3">
+              <h6><i class="fas fa-calculator"></i> Calculation Summary:</h6>
+              <div class="row">
+                <div class="col-md-6">
+                  <p class="mb-1"><strong>Total Internal (25):</strong> Script ({{ student_marks["Script Marks (15)"] }}) + Viva ({{ student_marks["Viva Marks (10)"] }}) = {{ student_marks["Total Internal (25)"] }}</p>
+                </div>
+                <div class="col-md-6">
+                  <p class="mb-1"><strong>Final Internal (50):</strong> Rubrics ({{ student_marks["Rubrics Marks (20)"] }}) + Total Internal ({{ student_marks["Total Internal (25)"] }}) + Attendance ({{ student_marks["Attendance Marks (5)"] }}) = {{ student_marks["Final Internal Marks (50)"] }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quiz Performance Details -->
+          {% if quiz_attempts %}
+          <div class="marks-card">
+            <h5 class="mb-3"><i class="fas fa-chart-line"></i> Quiz Performance History</h5>
+            <div class="row">
+              <div class="col-md-4">
+                <div class="text-center">
+                  <h4>{{ quiz_attempts|length }}</h4>
+                  <small>Total Attempts</small>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="text-center">
+                  <h4>{{ best_attempt.score if best_attempt else 0 }}%</h4>
+                  <small>Best Score</small>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="text-center">
+                  <h4>{{ "%.1f" | format(quiz_attempts|sum(attribute='score')/quiz_attempts|length) }}%</h4>
+                  <small>Average Score</small>
+                </div>
+              </div>
+            </div>
+
+            <h6 class="mt-3 mb-2">Recent Quiz Attempts:</h6>
+            {% for attempt in quiz_attempts[:5] %}
+            <div class="quiz-attempt-card {% if attempt.id == best_attempt.id %}best-attempt{% endif %}">
+              <div class="d-flex justify-content-between align-items-center">
+                <div>
+                  <strong>Attempt #{{ attempt.attempt_number }}</strong>
+                  {% if attempt.id == best_attempt.id %}
+                  <span class="badge bg-warning text-dark ms-2">Best Score</span>
+                  {% endif %}
+                </div>
+                <div class="text-end">
+                  <h6 class="mb-0">{{ attempt.score }}%</h6>
+                  <small class="text-muted">{{ attempt.completed_at.strftime('%d %b %Y') if attempt.completed_at }}</small>
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+          <div class="marks-card">
+            <div class="text-center text-muted py-4">
+              <i class="fas fa-quiz fa-3x mb-3"></i>
+              <h5>No Quiz Attempts Yet</h5>
+              <p>Take the Python Lab quiz to earn viva marks</p>
+              <a href="{{ url_for('python_lab_student_dashboard') }}" class="btn btn-primary">
+                <i class="fas fa-play"></i> Go to Quiz
+              </a>
+            </div>
+          </div>
+          {% endif %}
+
+          <!-- Grade Scale Reference -->
+          <div class="marks-card">
+            <h6><i class="fas fa-graduation-cap"></i> Grading Scale:</h6>
+            <div class="row text-center">
+              <div class="col"><span class="badge bg-success">A: 80-100%</span></div>
+              <div class="col"><span class="badge bg-primary">B: 70-79%</span></div>
+              <div class="col"><span class="badge bg-warning">C: 60-69%</span></div>
+              <div class="col"><span class="badge bg-danger">D: 50-59%</span></div>
+              <div class="col"><span class="badge bg-secondary">F: Below 50%</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  </body>
+</html>

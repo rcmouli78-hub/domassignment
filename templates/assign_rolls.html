@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Assign Roll Numbers</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+    />
+  </head>
+  <body class="bg-light">
+    <div class="container py-5">
+      <div class="row">
+        <div class="col-md-8 mx-auto">
+          <div class="card shadow-lg">
+            <div class="card-header bg-info text-white">
+              <h3 class="mb-0">
+                <i class="fas fa-list"></i> Assign Roll Numbers to:
+                <strong>{{ admin.rollnumber }}</strong>
+              </h3>
+            </div>
+            <div class="card-body">
+              {% with messages = get_flashed_messages(with_categories=true) %}
+              {% if messages %} {% for category, message in messages %}
+              <div
+                class="alert alert-{{ 'danger' if category == 'danger' else 'success' }} alert-dismissible fade show"
+                role="alert"
+              >
+                {{ message }}
+                <button
+                  type="button"
+                  class="btn-close"
+                  data-bs-dismiss="alert"
+                ></button>
+              </div>
+              {% endfor %} {% endif %} {% endwith %}
+
+              <!-- Bulk Assignment (Mixed Ranges and Individual) -->
+              <div class="card mb-4">
+                <div class="card-header bg-warning text-white">
+                  <h5 class="mb-0">
+                    <i class="fas fa-magic"></i> Bulk Assignment (Mixed Ranges &
+                    Individual)
+                  </h5>
+                </div>
+                <div class="card-body">
+                  <form method="POST">
+                    <input type="hidden" name="assignment_type" value="bulk" />
+                    <div class="row">
+                      <div class="col-md-10">
+                        <label for="bulk_assignment" class="form-label">
+                          <strong>Bulk Roll Number Assignment</strong>
+                        </label>
+                        <textarea
+                          class="form-control"
+                          id="bulk_assignment"
+                          name="bulk_assignment"
+                          rows="4"
+                          placeholder="Examples:&#10;1-20, 22, 24-30, 32, 34-50&#10;2021001-2021100, 2021150, 2022001-2022050&#10;Mix of ranges (start-end) and individual numbers"
+                          required
+                        ></textarea>
+                        <div class="form-text">
+                          <strong>Format:</strong> Use commas to separate items.
+                          <br /><strong>Ranges:</strong> Use dash (-) like
+                          "1-20" or "2021001-2021100" <br /><strong
+                            >Individual:</strong
+                          >
+                          Just the number like "22" or "2021150" <br /><strong
+                            >Example:</strong
+                          >
+                          1-20, 22, 24-30, 32, 34-50 <br /><span
+                            class="text-success"
+                            ><strong
+                              >✅ Live preview will show below as you
+                              type</strong
+                            ></span
+                          >
+                        </div>
+                      </div>
+                      <div class="col-md-2 d-flex align-items-end">
+                        <button type="submit" class="btn btn-warning w-100">
+                          <i class="fas fa-magic"></i> Bulk Assign
+                        </button>
+                      </div>
+                    </div>
+                  </form>
+                </div>
+              </div>
+
+              <!-- Add Range Assignment -->
+              <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                  <h5 class="mb-0">
+                    <i class="fas fa-arrows-alt-h"></i> Add Range Assignment
+                  </h5>
+                </div>
+                <div class="card-body">
+                  <form method="POST">
+                    <input type="hidden" name="assignment_type" value="range" />
+                    <div class="row">
+                      <div class="col-md-5">
+                        <label for="roll_start" class="form-label"
+                          >Start Roll Number</label
+                        >
+                        <input
+                          type="text"
+                          class="form-control"
+                          id="roll_start"
+                          name="roll_start"
+                          placeholder="e.g., 2021001"
+                          required
+                        />
+                      </div>
+                      <div class="col-md-5">
+                        <label for="roll_end" class="form-label"
+                          >End Roll Number</label
+                        >
+                        <input
+                          type="text"
+                          class="form-control"
+                          id="roll_end"
+                          name="roll_end"
+                          placeholder="e.g., 2021100"
+                          required
+                        />
+                      </div>
+                      <div class="col-md-2 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary w-100">
+                          <i class="fas fa-plus"></i> Add Range
+                        </button>
+                      </div>
+                    </div>
+                    <div class="form-text">
+                      This will assign all roll numbers between start and end
+                      (inclusive).
+                    </div>
+                  </form>
+                </div>
+              </div>
+
+              <!-- Add Individual Assignment -->
+              <div class="card mb-4">
+                <div class="card-header bg-success text-white">
+                  <h5 class="mb-0">
+                    <i class="fas fa-list-ul"></i> Add Individual Roll Numbers
+                  </h5>
+                </div>
+                <div class="card-body">
+                  <form method="POST">
+                    <input
+                      type="hidden"
+                      name="assignment_type"
+                      value="individual"
+                    />
+                    <div class="row">
+                      <div class="col-md-10">
+                        <label for="roll_numbers" class="form-label"
+                          >Individual Roll Numbers</label
+                        >
+                        <textarea
+                          class="form-control"
+                          id="roll_numbers"
+                          name="roll_numbers"
+                          rows="3"
+                          placeholder="e.g., 2021055, 2021067, 2022001, 2022015"
+                          required
+                        ></textarea>
+                        <div class="form-text">
+                          Enter roll numbers separated by commas. Spaces will be
+                          automatically trimmed.
+                        </div>
+                      </div>
+                      <div class="col-md-2 d-flex align-items-end">
+                        <button type="submit" class="btn btn-success w-100">
+                          <i class="fas fa-plus"></i> Add List
+                        </button>
+                      </div>
+                    </div>
+                  </form>
+                </div>
+              </div>
+
+              <!-- Current Assignments -->
+              <div class="card">
+                <div class="card-header bg-dark text-white">
+                  <h5 class="mb-0">
+                    <i class="fas fa-check-circle"></i> Current Assignments
+                  </h5>
+                </div>
+                <div class="card-body">
+                  {% if assignments %}
+                  <div class="table-responsive">
+                    <table class="table table-hover">
+                      <thead class="table-light">
+                        <tr>
+                          <th>Type</th>
+                          <th>Assignment Details</th>
+                          <th>Created</th>
+                          <th>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {% for assignment in assignments %}
+                        <tr>
+                          <td>
+                            {% if assignment.assignment_type == 'range' %}
+                            <span class="badge bg-primary">
+                              <i class="fas fa-arrows-alt-h"></i> Range
+                            </span>
+                            {% else %}
+                            <span class="badge bg-success">
+                              <i class="fas fa-list-ul"></i> Individual
+                            </span>
+                            {% endif %}
+                          </td>
+                          <td>
+                            {% if assignment.assignment_type == 'range' %}
+                            <strong>{{ assignment.roll_start }}</strong> to
+                            <strong>{{ assignment.roll_end }}</strong>
+                            {% else %} {{ assignment.roll_numbers }} {% endif %}
+                          </td>
+                          <td>
+                            {{ assignment.created_at.strftime('%Y-%m-%d %H:%M')
+                            }}
+                          </td>
+                          <td>
+                            <div class="btn-group" role="group">
+                              <a
+                                href="{{ url_for('edit_assignment', assignment_id=assignment.id) }}"
+                                class="btn btn-sm btn-outline-primary"
+                              >
+                                <i class="fas fa-edit"></i> Edit
+                              </a>
+                              <form
+                                method="POST"
+                                action="{{ url_for('delete_assignment', assignment_id=assignment.id) }}"
+                                style="display: inline"
+                              >
+                                <button
+                                  type="submit"
+                                  class="btn btn-sm btn-outline-danger"
+                                  onclick="return confirm('Are you sure you want to delete this assignment?');"
+                                >
+                                  <i class="fas fa-trash"></i> Delete
+                                </button>
+                              </form>
+                            </div>
+                          </td>
+                        </tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div class="alert alert-info mt-3">
+                    <i class="fas fa-info-circle"></i>
+                    <strong>Total Students Assigned:</strong>
+                    <span class="badge bg-info fs-6"
+                      >{{ count_students_for_admin(admin.id) }} students</span
+                    >
+
+                    <!-- Debug information -->
+                    <details class="mt-2">
+                      <summary class="text-muted" style="cursor: pointer">
+                        Debug Info
+                      </summary>
+                      <pre class="mt-2 text-muted small">
+{{ debug_admin_assignments(admin.id) }}</pre
+                      >
+                    </details>
+                  </div>
+                  {% else %}
+                  <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    No roll numbers assigned yet. Add ranges or individual
+                    numbers above.
+                  </div>
+                  {% endif %}
+                </div>
+              </div>
+
+              <div class="mt-4">
+                <a
+                  href="{{ url_for('admin_dashboard') }}"
+                  class="btn btn-secondary"
+                >
+                  <i class="fas fa-arrow-left"></i> Back to Dashboard
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      // Bulk assignment preview
+      document
+        .getElementById("bulk_assignment")
+        .addEventListener("input", function () {
+          const bulkText = this.value.trim();
+          const previewDiv = document.getElementById("bulk_preview");
+
+          if (!previewDiv) {
+            // Create preview div if it doesn't exist
+            const preview = document.createElement("div");
+            preview.id = "bulk_preview";
+            preview.className = "mt-2 p-2 bg-light border rounded";
+            preview.innerHTML =
+              '<small class="text-muted"><strong>Preview:</strong></small><div id="preview_content"></div>';
+            this.parentNode.appendChild(preview);
+          }
+
+          const previewContent = document.getElementById("preview_content");
+
+          if (bulkText) {
+            try {
+              const items = bulkText
+                .split(",")
+                .map((item) => item.trim())
+                .filter((item) => item);
+              let ranges = [];
+              let individuals = [];
+              let totalCount = 0;
+
+              items.forEach((item) => {
+                if (item.includes("-") && !item.startsWith("-")) {
+                  const parts = item.split("-");
+                  if (parts.length === 2) {
+                    const start = parseInt(parts[0].trim());
+                    const end = parseInt(parts[1].trim());
+                    if (!isNaN(start) && !isNaN(end) && start <= end) {
+                      ranges.push(item);
+                      totalCount += end - start + 1;
+                    }
+                  }
+                } else {
+                  individuals.push(item);
+                  totalCount += 1;
+                }
+              });
+
+              let previewText = "<small>";
+              if (ranges.length > 0) {
+                previewText += `<span class="badge bg-primary me-1">${ranges.length} ranges</span>`;
+              }
+              if (individuals.length > 0) {
+                previewText += `<span class="badge bg-success me-1">${individuals.length} individual</span>`;
+              }
+              previewText += `<span class="badge bg-info">~${totalCount} total numbers</span>`;
+              previewText += "</small>";
+
+              previewContent.innerHTML = previewText;
+            } catch (e) {
+              previewContent.innerHTML =
+                '<small class="text-danger">Invalid format</small>';
+            }
+          } else {
+            previewContent.innerHTML =
+              '<small class="text-muted">Enter assignment text above</small>';
+          }
+        });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Problem 9</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+<div class="container py-5">
+  <div class="card shadow-lg p-4">
+    <h2 class="text-center text-primary">Problem 9: Balancing of Reciprocating Engine (10 Marks)</h2>
+
+    <p class="mt-3">
+      A single-cylinder reciprocating engine has:
+      <ul>
+        <li>Speed: <b>{{ vars.p9_speed_rpm }}</b> rpm</li>
+        <li>Stroke: <b>{{ vars.p9_stroke_mm }}</b> mm</li>
+        <li>Mass of reciprocating parts: <b>{{ vars.p9_m_rec }}</b> kg</li>
+        <li>Mass of revolving parts: <b>{{ vars.p9_m_rev }}</b> kg at radius <b>{{ vars.p9_rev_radius_mm }}</b> mm</li>
+        <li>We will place balancing mass at radius: <b>{{ vars.p9_balance_radius_mm }}</b> mm</li>
+      </ul>
+      If two-thirds of reciprocating parts and all the revolving parts are to be balanced, find:
+      <ol>
+        <li>The balancing mass required at radius <b>{{ vars.p9_balance_radius_mm }}</b> mm (kg)</li>
+        <li>The residual unbalanced force when the crank is at <b>60°</b> from top dead centre (N)</li>
+      </ol>
+    </p>
+    <p class="text-muted">
+      <small>Each correct answer carries 5 marks. Minimum 2 marks for attempt.</small>
+    </p>
+
+    {% if feedback %}
+      <div class="alert alert-info">{{ feedback }}</div>
+
+      {% if steps %}
+        <h4 class="mt-4">Solution Steps:</h4>
+        <ul class="list-group">
+          {% for s in steps %}
+            <li class="list-group-item">{{ s }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+
+      <div class="mt-4">
+  <a href="{% if user.role in ['admin', 'super_admin'] %}{{ url_for('admin_assignment_view') }}{% else %}{{ url_for('student_dashboard') }}{% endif %}" class="btn btn-primary w-100">Back to Dashboard</a>
+      </div>
+
+    {% else %}
+  {# Unlimited attempts for admin/super_admin #}
+  {% if not (user and user.p9_attempts >= 2 and user.role not in ['admin', 'super_admin']) %}
+  <form method="POST" class="mt-3">
+        <div class="mb-3">
+          <label class="form-label">Balancing mass at {{ vars.p9_balance_radius_mm }} mm (kg): <span class="text-success">[5 marks]</span></label>
+          <input name="balance_mass" type="number" step="0.001" class="form-control" required>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Residual unbalanced force at 60° (N): <span class="text-success">[5 marks]</span></label>
+          <input name="residual_force" type="number" step="0.01" class="form-control" required>
+        </div>
+
+        <button type="submit" class="btn btn-success w-100">Submit Answers</button>
+      </form>
+  {% endif %}
+  {% endif %}
+
+  </div>
+</div>
+{% if show_celebration %} {% include 'celebration.html' %} {% endif %}
+</body>
+{% if user.role == 'student' %}
+{% set guard_form_selector = 'form' %}
+{% set guard_context_label = 'assignment' %}
+{% include '_strict_tab_open_guard.html' %}
+{% endif %}
+</html>
