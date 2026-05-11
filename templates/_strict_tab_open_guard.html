@@ -4,7 +4,9 @@
     if (!form) return;
 
     const contextLabel = {{ guard_context_label|default('assessment')|tojson }};
+    const hiddenGraceMs = 10000;
     let alreadyHandled = false;
+    let hiddenTimeoutId = null;
 
     function ensureAutoSubmitPayload() {
       form.querySelectorAll('input[type="number"]').forEach((input) => {
@@ -41,13 +43,13 @@
       }
     }
 
-    function showAutoSubmitModal(onConfirm) {
+    function showAutoSubmitModal(onConfirm, reasonText) {
       const modal = document.createElement("div");
       modal.innerHTML = `
         <div style="position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:9999;">
           <div style="background:#fff;padding:2em;border-radius:10px;max-width:420px;text-align:center;box-shadow:0 0 20px #0003;">
             <h4 style="color:#d9534f;">Auto-Submission Notice</h4>
-            <p>Because you tried to open another tab or window, this ${contextLabel} will be auto-submitted for anti-cheating protection.<br>
+            <p>${reasonText || `Because you tried to open another tab or window, this ${contextLabel} will be auto-submitted for anti-cheating protection.`}<br>
             Phone calls, temporary ads, and other brief interruptions will not trigger this.<br>
             <b>This dialog will remain until you click OK.</b></p>
             <button id="autoSubmitOkBtn" class="btn btn-danger mt-2">OK</button>
@@ -61,15 +63,19 @@
       };
     }
 
-    function handleTabOpenAttempt(event) {
+    function handleTabOpenAttempt(event, reasonText) {
       if (alreadyHandled) return;
       alreadyHandled = true;
+      if (hiddenTimeoutId) {
+        clearTimeout(hiddenTimeoutId);
+        hiddenTimeoutId = null;
+      }
       if (event) {
         event.preventDefault();
         event.stopPropagation();
       }
       ensureAutoSubmitPayload();
-      showAutoSubmitModal(() => form.submit());
+      showAutoSubmitModal(() => form.submit(), reasonText);
     }
 
     document.addEventListener("keydown", (event) => {
@@ -103,6 +109,27 @@
       if (event.button !== 1) return;
       const link = event.target.closest("a");
       if (link) handleTabOpenAttempt(event);
+    });
+
+    document.addEventListener("visibilitychange", () => {
+      if (alreadyHandled) return;
+
+      if (document.visibilityState === "hidden") {
+        hiddenTimeoutId = window.setTimeout(() => {
+          handleTabOpenAttempt(
+            null,
+            `Because you left this ${contextLabel} page for more than ${Math.floor(
+              hiddenGraceMs / 1000
+            )} seconds, it will be auto-submitted for anti-cheating protection.`
+          );
+        }, hiddenGraceMs);
+        return;
+      }
+
+      if (hiddenTimeoutId) {
+        clearTimeout(hiddenTimeoutId);
+        hiddenTimeoutId = null;
+      }
     });
 
     window.open = function () {
