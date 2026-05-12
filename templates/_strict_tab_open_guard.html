@@ -5,8 +5,10 @@
 
     const contextLabel = {{ guard_context_label|default('assessment')|tojson }};
     const hiddenGraceMs = 10000;
+    const hiddenMaxViolationMs = 120000;
     let alreadyHandled = false;
     let hiddenTimeoutId = null;
+    let hiddenStartedAt = null;
 
     function ensureAutoSubmitPayload() {
       form.querySelectorAll('input[type="number"]').forEach((input) => {
@@ -135,7 +137,12 @@
       if (alreadyHandled) return;
 
       if (document.visibilityState === "hidden") {
+        hiddenStartedAt = Date.now();
         hiddenTimeoutId = window.setTimeout(() => {
+          const hiddenDuration = hiddenStartedAt ? Date.now() - hiddenStartedAt : hiddenGraceMs;
+          if (hiddenDuration > hiddenMaxViolationMs) {
+            return;
+          }
           handleTabOpenAttempt(
             null,
             `Because you left this ${contextLabel} page for more than ${Math.floor(
@@ -150,6 +157,15 @@
         clearTimeout(hiddenTimeoutId);
         hiddenTimeoutId = null;
       }
+
+      if (hiddenStartedAt) {
+        const hiddenDuration = Date.now() - hiddenStartedAt;
+        if (hiddenDuration > hiddenMaxViolationMs) {
+          hiddenStartedAt = null;
+          return;
+        }
+      }
+      hiddenStartedAt = null;
     });
 
     window.open = function () {
