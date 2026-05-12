@@ -429,6 +429,11 @@
                                 <h5>Question-wise Results</h5>
                             </div>
                             <div class="card-body">
+                                {% if hide_correct_answers %}
+                                <div class="alert alert-warning">
+                                    Correct answers are hidden for this attempt because the quiz was auto-submitted by anti-cheating protection.
+                                </div>
+                                {% endif %}
                                 {% for response in responses %}
                                 <div class="card mb-3 border-{{ 'success' if response.is_correct else 'danger' }}">
                                     <div class="card-header bg-{{ 'success' if response.is_correct else 'danger' }} text-white">
@@ -444,16 +449,16 @@
                                             {% set choice_letter = ['A', 'B', 'C', 'D'][loop.index0] %}
                                             <div class="col-md-6 mb-2">
                                                 <div class="p-2 border rounded
-                                                    {{ 'border-success bg-light-success' if choice_letter in response.question.correct_answers else '' }}
+                                                    {{ 'border-success bg-light-success' if not hide_correct_answers and choice_letter in response.question.correct_answers else '' }}
                                                     {{ 'border-primary bg-light-primary' if loop.index0 in response.selected_answer else '' }}
-                                                    {{ 'border-danger bg-light-danger' if loop.index0 in response.selected_answer and choice_letter not in response.question.correct_answers else '' }}">
+                                                    {{ 'border-danger bg-light-danger' if not hide_correct_answers and loop.index0 in response.selected_answer and choice_letter not in response.question.correct_answers else '' }}">
                                                     <strong>{{ choice_letter }}.</strong>
                                                     {% if choice is mapping and choice.text %}
                                                         {{ choice.text }}
                                                     {% else %}
                                                         {{ choice }}
                                                     {% endif %}
-                                                    {% if choice_letter in response.question.correct_answers %}
+                                                    {% if not hide_correct_answers and choice_letter in response.question.correct_answers %}
                                                         <span class="badge bg-success ms-2">Correct</span>
                                                     {% endif %}
                                                     {% if loop.index0 in response.selected_answer %}

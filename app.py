@@ -4713,6 +4713,7 @@ class QuizAttempt(db.Model):
     quiz_name = db.Column(db.String(100), default='default_quiz')
     started_at = db.Column(db.DateTime, default=db.func.current_timestamp())
     completed_at = db.Column(db.DateTime, nullable=True)
+    auto_submitted = db.Column(db.Boolean, default=False)
     score = db.Column(db.Integer, default=0)
     total_points = db.Column(db.Integer, default=0)
     attempt_number = db.Column(db.Integer, nullable=False, default=1)
@@ -5064,9 +5065,20 @@ def ensure_quiz_bank_schema():
         db.session.commit()
 
 
+def ensure_quiz_attempt_schema():
+    inspector = inspect(db.engine)
+    quiz_attempt_columns = {column["name"] for column in inspector.get_columns("quiz_attempts")}
+    if "auto_submitted" not in quiz_attempt_columns:
+        db.session.execute(
+            text("ALTER TABLE quiz_attempts ADD COLUMN auto_submitted BOOLEAN DEFAULT 0")
+        )
+        db.session.commit()
+
+
 def initialize_quiz_bank_system():
     db.create_all()
     ensure_quiz_bank_schema()
+    ensure_quiz_attempt_schema()
     quiz_bank = ensure_default_quiz_bank()
     db.session.commit()
     return quiz_bank
@@ -15729,6 +15741,7 @@ def submit_quiz():
 
     try:
         total_score = 0
+        auto_submitted = request.form.get("auto_submit") == "1"
 
         # DEBUG: Print all form data received
         print("🔍 QUIZ SUBMISSION DEBUG:")
@@ -15815,22 +15828,28 @@ def submit_quiz():
         attempt.total_points = sum(question.points for question in QuizQuestion.query.filter(
             QuizQuestion.id.in_(questions_given)).all())
         attempt.completed_at = datetime.now()
+        attempt.auto_submitted = auto_submitted
 
         print(f"  Attempt score set to: {attempt.score}")
         print(f"  Attempt total_points set to: {attempt.total_points}")
+        print(f"  Attempt auto_submitted set to: {attempt.auto_submitted}")
 
         db.session.commit()
         print(f"  Database committed successfully")
 
-        flash(
-            f"Quiz submitted successfully! Score: {total_score}/{attempt.total_points}", "success")
+        if auto_submitted:
+            flash(
+                f"Quiz auto-submitted due to anti-cheating protection. Score: {total_score}/{attempt.total_points}",
+                "warning"
+            )
+        else:
+            flash(
+                f"Quiz submitted successfully! Score: {total_score}/{attempt.total_points}", "success")
 
         # Clean up session data
         session.pop(f'quiz_attempt_{attempt.id}_questions', None)
         session.pop(f'quiz_attempt_{attempt.id}_choice_orders', None)
 
-        flash(
-            f"Quiz submitted successfully! Score: {total_score}/{attempt.total_points}", "success")
         return redirect(url_for("quiz_results", attempt_id=attempt.id))
 
     except Exception as e:
@@ -15956,6 +15975,7 @@ def quiz_results(attempt_id):
 
     correct_answers = sum(1 for r in responses if r.is_correct)
     total_questions = len(responses)
+    hide_correct_answers = bool(attempt.auto_submitted)
 
     return render_template("quiz.html",
                            quiz_mode="results",
@@ -15967,7 +15987,8 @@ def quiz_results(attempt_id):
                            correct_answers=correct_answers,
                            total_questions=total_questions,
                            can_retake=can_retake,
-                           retake_quiz_name=attempt.quiz_name)
+                           retake_quiz_name=attempt.quiz_name,
+                           hide_correct_answers=hide_correct_answers)
 
 
 @app.route("/reset_quiz_attempts", methods=["POST"])
