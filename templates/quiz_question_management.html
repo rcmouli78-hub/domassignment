@@ -141,7 +141,7 @@
               <button class="btn btn-outline-primary w-100" type="submit">Update Quiz Details</button>
             </form>
             <form class="mt-2" method="POST" action="{{ url_for('delete_quiz_bank', quiz_name=selected_quiz.quiz_name) }}"
-              onsubmit="return confirm('Delete the entire quiz bank \"{{ selected_quiz.quiz_title|replace(\"'\", \"\\\\'\") }}\"? This will permanently remove its questions, attempts, responses, releases, and sharing settings.')">
+              onsubmit="return confirm({{ ('Delete the entire quiz bank \"' ~ selected_quiz.quiz_title ~ '\"? This will permanently remove its questions, attempts, responses, releases, and sharing settings.')|tojson }})">
               <button class="btn btn-outline-danger w-100" type="submit">Delete This Quiz</button>
             </form>
             {% endif %}
