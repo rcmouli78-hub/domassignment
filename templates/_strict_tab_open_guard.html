@@ -4,7 +4,7 @@
     if (!form) return;
 
     const contextLabel = {{ guard_context_label|default('assessment')|tojson }};
-    const hiddenGraceMs = 10000;
+    const hiddenGraceMs = 5000;
     const hiddenMaxViolationMs = 120000;
     let alreadyHandled = false;
     let hiddenTimeoutId = null;
