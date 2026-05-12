@@ -86,12 +86,32 @@
         return;
       }
 
-      if (
-        (event.ctrlKey && ["c", "v", "x"].includes(key)) ||
-        event.key === "PrintScreen"
-      ) {
-        event.preventDefault();
+      if ((event.ctrlKey || event.metaKey) && ["c", "v", "x"].includes(key)) {
+        handleTabOpenAttempt(
+          event,
+          `Because you attempted to use a copy/paste shortcut during this ${contextLabel}, it will be auto-submitted for anti-cheating protection.`
+        );
+        return;
       }
+
+      if (
+        event.key === "PrintScreen" ||
+        ((event.ctrlKey || event.metaKey) && event.shiftKey && ["s", "3", "4"].includes(key))
+      ) {
+        handleTabOpenAttempt(
+          event,
+          `Because you attempted to capture this ${contextLabel} screen, it will be auto-submitted for anti-cheating protection.`
+        );
+      }
+    });
+
+    ["copy", "cut", "paste"].forEach((eventName) => {
+      document.addEventListener(eventName, (event) => {
+        handleTabOpenAttempt(
+          event,
+          `Because you attempted to ${eventName} content from this ${contextLabel}, it will be auto-submitted for anti-cheating protection.`
+        );
+      });
     });
 
     document.addEventListener("click", (event) => {
