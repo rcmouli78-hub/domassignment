@@ -14694,6 +14694,52 @@ def update_quiz_bank(quiz_name):
     return redirect(url_for("quiz_question_management", quiz_name=quiz_bank.quiz_name))
 
 
+@app.route("/delete_quiz_bank/<quiz_name>", methods=["POST"])
+def delete_quiz_bank(quiz_name):
+    if "rollnumber" not in session:
+        return redirect(url_for("login"))
+
+    user = User.query.filter_by(rollnumber=session["rollnumber"]).first()
+    quiz_bank = get_quiz_bank_by_name(quiz_name)
+    if not user or not can_admin_edit_quiz_bank(user, quiz_bank):
+        flash("Access denied. You cannot delete this quiz.", "error")
+        return redirect(url_for("quiz_question_management"))
+
+    try:
+        assigned_question_ids = [
+            row.question_id for row in QuizQuestionAssignment.query.filter_by(quiz_id=quiz_bank.id).all()
+        ]
+
+        attempt_ids = [
+            row.id for row in QuizAttempt.query.filter_by(quiz_name=quiz_bank.quiz_name).all()
+        ]
+        if attempt_ids:
+            QuizResponse.query.filter(QuizResponse.attempt_id.in_(attempt_ids)).delete(
+                synchronize_session=False
+            )
+            QuizAttempt.query.filter(QuizAttempt.id.in_(attempt_ids)).delete(
+                synchronize_session=False
+            )
+
+        QuizVisibility.query.filter_by(quiz_name=quiz_bank.quiz_name).delete()
+        QuizAdminAccess.query.filter_by(quiz_id=quiz_bank.id).delete()
+        QuizQuestionAssignment.query.filter_by(quiz_id=quiz_bank.id).delete()
+
+        for question_id in assigned_question_ids:
+            if not QuizQuestionAssignment.query.filter_by(question_id=question_id).first():
+                QuizQuestion.query.filter_by(id=question_id).delete()
+
+        quiz_title = quiz_bank.quiz_title
+        db.session.delete(quiz_bank)
+        db.session.commit()
+        flash(f"Quiz '{quiz_title}' deleted successfully.", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error deleting quiz: {str(e)}", "error")
+
+    return redirect(url_for("quiz_question_management"))
+
+
 @app.route("/update_quiz_admin_access/<quiz_name>", methods=["POST"])
 def update_quiz_admin_access(quiz_name):
     if "rollnumber" not in session:
