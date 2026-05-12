@@ -84,6 +84,8 @@
               <input class="form-control mb-2" name="quiz_title" placeholder="Quiz title" required />
               <input class="form-control mb-2" name="quiz_name" placeholder="Quiz code e.g. quiz_unit_1" required />
               <textarea class="form-control mb-2" name="description" rows="2" placeholder="Description"></textarea>
+              <label class="form-label">Questions Per Attempt</label>
+              <input class="form-control mb-2" type="number" name="questions_per_attempt" min="1" value="10" required />
               <label class="form-label">Covered COs</label>
               <div class="mb-2">
                 {% for co in quiz_co_options %}
@@ -113,6 +115,10 @@
               CO coverage:
               {{ (selected_quiz.covered_cos or [])|join(', ') if selected_quiz.covered_cos else 'Not set' }}
             </p>
+            <p class="small mb-2">
+              Questions per attempt:
+              {{ configured_questions_per_attempt }}
+            </p>
             <p class="small mb-3">
               Admin sharing:
               {% if selected_quiz.is_shared_with_all_admins %}All admins{% else %}Restricted{% endif %}
@@ -122,6 +128,9 @@
             <form method="POST" action="{{ url_for('update_quiz_bank', quiz_name=selected_quiz.quiz_name) }}">
               <input class="form-control mb-2" name="quiz_title" value="{{ selected_quiz.quiz_title }}" required />
               <textarea class="form-control mb-2" name="description" rows="2">{{ selected_quiz.description or '' }}</textarea>
+              <label class="form-label">Questions Per Attempt</label>
+              <input class="form-control mb-2" type="number" name="questions_per_attempt" min="1"
+                value="{{ selected_quiz.questions_per_attempt or configured_questions_per_attempt }}" required />
               <div class="mb-2">
                 {% for co in quiz_co_options %}
                 <div class="form-check form-check-inline">
@@ -294,7 +303,13 @@
               <div class="col-md-2 col-4 mb-2">
                 <div class="border rounded p-2 bg-light">
                   <strong>Total</strong><br />
-                  <span class="small text-muted">{{ total_questions }} questions</span>
+                  <span class="small text-muted">{{ total_questions }} bank questions</span>
+                </div>
+              </div>
+              <div class="col-md-3 col-6 mb-2">
+                <div class="border rounded p-2 bg-light">
+                  <strong>Per Attempt</strong><br />
+                  <span class="small text-muted">{{ configured_questions_per_attempt }} random questions</span>
                 </div>
               </div>
             </div>

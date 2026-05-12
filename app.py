@@ -23,7 +23,7 @@ from flask import (
 )
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
-from sqlalchemy import func, or_
+from sqlalchemy import func, or_, text
 from sqlalchemy.inspection import inspect
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -4629,6 +4629,7 @@ class QuizBank(db.Model):
     quiz_title = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text, nullable=True)
     covered_cos = db.Column(db.JSON, nullable=True)
+    questions_per_attempt = db.Column(db.Integer, nullable=True, default=10)
     is_shared_with_all_admins = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
     created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
@@ -5035,6 +5036,7 @@ def ensure_default_quiz_bank():
             quiz_title="Default Quiz",
             description="Migrated default quiz bank",
             covered_cos=QUIZ_CO_OPTIONS,
+            questions_per_attempt=10,
             is_shared_with_all_admins=True,
             created_by=creator_id
         )
@@ -5052,8 +5054,19 @@ def ensure_default_quiz_bank():
     return quiz_bank
 
 
+def ensure_quiz_bank_schema():
+    inspector = inspect(db.engine)
+    quiz_bank_columns = {column["name"] for column in inspector.get_columns("quiz_banks")}
+    if "questions_per_attempt" not in quiz_bank_columns:
+        db.session.execute(
+            text("ALTER TABLE quiz_banks ADD COLUMN questions_per_attempt INTEGER NULL DEFAULT 10")
+        )
+        db.session.commit()
+
+
 def initialize_quiz_bank_system():
     db.create_all()
+    ensure_quiz_bank_schema()
     quiz_bank = ensure_default_quiz_bank()
     db.session.commit()
     return quiz_bank
@@ -5112,6 +5125,56 @@ def get_quiz_question_counts(quiz_bank):
         if question.co_number in counts:
             counts[question.co_number] += 1
     return counts
+
+
+def get_quiz_questions_per_attempt(quiz_bank, available_count=None):
+    total_available = available_count if available_count is not None else len(get_quiz_questions(quiz_bank))
+    configured = getattr(quiz_bank, "questions_per_attempt", None) if quiz_bank else None
+
+    try:
+        configured = int(configured)
+    except (TypeError, ValueError):
+        configured = 10
+
+    configured = max(1, configured)
+    if total_available <= 0:
+        return configured
+    return min(configured, total_available)
+
+
+def select_random_questions_for_quiz(quiz_bank):
+    quiz_questions = get_quiz_questions(quiz_bank)
+    if not quiz_questions:
+        return []
+
+    target_count = get_quiz_questions_per_attempt(quiz_bank, available_count=len(quiz_questions))
+    questions_by_co = {}
+    for question in quiz_questions:
+        questions_by_co.setdefault(question.co_number or "UNSPECIFIED", []).append(question)
+
+    for pool in questions_by_co.values():
+        random.shuffle(pool)
+
+    co_keys = list(questions_by_co.keys())
+    random.shuffle(co_keys)
+
+    selected_questions = []
+    while len(selected_questions) < target_count and any(questions_by_co.values()):
+        progressed = False
+        for co_key in co_keys:
+            pool = questions_by_co.get(co_key) or []
+            if not pool:
+                continue
+            selected_questions.append(pool.pop())
+            progressed = True
+            if len(selected_questions) >= target_count:
+                break
+        if not progressed:
+            break
+        random.shuffle(co_keys)
+
+    random.shuffle(selected_questions)
+    return selected_questions
 
 
 def assign_question_to_quiz(quiz_bank, question):
@@ -14613,6 +14676,9 @@ def quiz_question_management():
         questions=questions,
         question_counts=question_counts,
         total_questions=total_questions,
+        configured_questions_per_attempt=get_quiz_questions_per_attempt(
+            selected_quiz, available_count=total_questions
+        ) if selected_quiz else 0,
         user=user,
         allow_admin_add_question=allow_admin_add_question,
         quiz_banks=quiz_banks,
@@ -14664,6 +14730,7 @@ def create_quiz_bank():
         quiz_title=quiz_title,
         description=(request.form.get("description") or "").strip() or None,
         covered_cos=parse_quiz_cos(request.form.getlist("covered_cos")),
+        questions_per_attempt=max(1, int(request.form.get("questions_per_attempt", 10) or 10)),
         is_shared_with_all_admins=bool(request.form.get("is_shared_with_all_admins")) if user.admin_level == 'super_admin' else False,
         created_by=user.id
     )
@@ -14687,6 +14754,7 @@ def update_quiz_bank(quiz_name):
     quiz_bank.quiz_title = (request.form.get("quiz_title") or quiz_bank.quiz_title).strip()
     quiz_bank.description = (request.form.get("description") or "").strip() or None
     quiz_bank.covered_cos = parse_quiz_cos(request.form.getlist("covered_cos"))
+    quiz_bank.questions_per_attempt = max(1, int(request.form.get("questions_per_attempt", quiz_bank.questions_per_attempt or 10) or 10))
     if user.admin_level == 'super_admin':
         quiz_bank.is_shared_with_all_admins = bool(request.form.get("is_shared_with_all_admins"))
     db.session.commit()
@@ -14906,6 +14974,7 @@ def upload_quiz_bulk_csv():
             quiz_title=(first_row.get("quiz_title") or quiz_name.replace("_", " ").title()).strip(),
             description=None,
             covered_cos=[],
+            questions_per_attempt=10,
             is_shared_with_all_admins=False,
             created_by=user.id
         )
@@ -15415,15 +15484,10 @@ def render_quiz_start_page_v2(user, quiz_name, available_quizzes=None):
 
     next_attempt_number = len(previous_attempts) + 1
     max_attempts = None if user.role == "admin" else 2
-    questions_by_co = {}
-    for question in quiz_questions:
-        questions_by_co.setdefault(question.co_number, []).append(question)
-
-    total_questions = sum(min(2, len(items)) for items in questions_by_co.values())
-    total_marks = 0
-    for items in questions_by_co.values():
-        point_values = sorted(((q.points or 1) for q in items), reverse=True)
-        total_marks += sum(point_values[:2])
+    total_questions = get_quiz_questions_per_attempt(selected_quiz, available_count=len(quiz_questions))
+    total_marks = sum(
+        sorted(((q.points or 1) for q in quiz_questions), reverse=True)[:total_questions]
+    )
 
     return render_template(
         "quiz.html",
@@ -15441,17 +15505,8 @@ def render_quiz_start_page_v2(user, quiz_name, available_quizzes=None):
 
 def start_new_quiz_attempt_v2(user, quiz_name):
     selected_quiz = get_quiz_bank_by_name(quiz_name)
-    quiz_questions = get_quiz_questions(selected_quiz)
-    questions_by_co = {}
-    for question in quiz_questions:
-        questions_by_co.setdefault(question.co_number, []).append(question)
-
-    selected_questions = []
+    selected_questions = select_random_questions_for_quiz(selected_quiz)
     choice_orders = {}
-    for co_questions in questions_by_co.values():
-        count = min(2, len(co_questions))
-        if count:
-            selected_questions.extend(random.sample(co_questions, count))
 
     if not selected_questions:
         flash("No questions available for this quiz. Please contact admin.", "error")
