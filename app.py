@@ -5384,6 +5384,32 @@ def get_quiz_co_question_share(quiz_bank):
     return shares
 
 
+def get_best_attempts_by_quiz(attempts):
+    best_by_quiz = {}
+    for attempt in attempts:
+        quiz_name = attempt.quiz_name or DEFAULT_QUIZ_NAME
+        current_best = best_by_quiz.get(quiz_name)
+        attempt_score = attempt.score or 0
+        attempt_total = attempt.total_points or 0
+        attempt_percentage = (attempt_score / attempt_total * 100) if attempt_total > 0 else 0
+
+        if current_best:
+            current_score = current_best.score or 0
+            current_total = current_best.total_points or 0
+            current_percentage = (current_score / current_total * 100) if current_total > 0 else 0
+        else:
+            current_score = -1
+            current_percentage = -1
+
+        if (
+            current_best is None
+            or attempt_score > current_score
+            or (attempt_score == current_score and attempt_percentage > current_percentage)
+        ):
+            best_by_quiz[quiz_name] = attempt
+    return best_by_quiz
+
+
 def assign_question_to_quiz(quiz_bank, question):
     existing = QuizQuestionAssignment.query.filter_by(
         quiz_id=quiz_bank.id, question_id=question.id).first()
@@ -16630,10 +16656,11 @@ def admin_quiz_co_analysis():
 
             if attempt_count > 0:
                 attempted_students.add(student.id)
+                best_attempts = list(get_best_attempts_by_quiz(student_attempts).values())
                 total_score = sum((attempt.score or 0)
-                                  for attempt in student_attempts)
+                                  for attempt in best_attempts)
                 total_points = sum((attempt.total_points or 0)
-                                   for attempt in student_attempts)
+                                   for attempt in best_attempts)
                 percentage = (total_score / total_points) * \
                     100 if total_points > 0 else 0
 
@@ -16647,7 +16674,7 @@ def admin_quiz_co_analysis():
 
                 student_performance.append({
                     'rollnumber': student.rollnumber,
-                    'attempts': attempt_count,
+                    'quiz_count': len(best_attempts),
                     'total_score': total_score,
                     'total_points': total_points,
                     'percentage': percentage,
@@ -16656,7 +16683,7 @@ def admin_quiz_co_analysis():
             else:
                 student_performance.append({
                     'rollnumber': student.rollnumber,
-                    'attempts': 0,
+                    'quiz_count': 0,
                     'total_score': 0,
                     'total_points': 0,
                     'percentage': 0,
@@ -16676,7 +16703,7 @@ def admin_quiz_co_analysis():
         # excellent, good, average, poor, not_attempted
         performance_distribution = [0, 0, 0, 0, 0]
         for student in student_performance:
-            if student['attempts'] == 0:
+            if student['quiz_count'] == 0:
                 performance_distribution[4] += 1
             elif student['percentage'] >= 80:
                 performance_distribution[0] += 1
@@ -16690,11 +16717,11 @@ def admin_quiz_co_analysis():
         # Calculate attempt distribution
         attempt_distribution = [0, 0, 0, 0]  # 0, 1, 2, 3+ attempts
         for student in student_performance:
-            if student['attempts'] == 0:
+            if student['quiz_count'] == 0:
                 attempt_distribution[0] += 1
-            elif student['attempts'] == 1:
+            elif student['quiz_count'] == 1:
                 attempt_distribution[1] += 1
-            elif student['attempts'] == 2:
+            elif student['quiz_count'] == 2:
                 attempt_distribution[2] += 1
             else:
                 attempt_distribution[3] += 1
@@ -16832,10 +16859,11 @@ def calculate_student_quiz_co_performance(user_id):
     if not attempts:
         return {}
 
-    attempt_ids = [attempt.id for attempt in attempts]
+    best_attempts = list(get_best_attempts_by_quiz(attempts).values())
+    attempt_ids = [attempt.id for attempt in best_attempts]
     attempt_quiz_name = {
         attempt.id: (attempt.quiz_name or DEFAULT_QUIZ_NAME)
-        for attempt in attempts
+        for attempt in best_attempts
     }
     quiz_names = sorted(set(attempt_quiz_name.values()))
     quiz_bank_map = {

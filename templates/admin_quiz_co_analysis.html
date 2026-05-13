@@ -287,9 +287,8 @@
                     <thead class="table-light">
                       <tr>
                         <th>Roll No</th>
-                        <th>Attempts</th>
                         <th>Total Score</th>
-                        <th>Overall % Across Attempts</th>
+                        <th>Overall %</th>
                         <th>CO1 %</th>
                         <th>CO2 %</th>
                         <th>CO3 %</th>
@@ -302,11 +301,6 @@
                       {% for student in student_performance %}
                       <tr class="student-row">
                         <td><strong>{{ student.rollnumber }}</strong></td>
-                        <td>
-                          <span class="badge bg-secondary"
-                            >{{ student.attempts }}</span
-                          >
-                        </td>
                         <td>
                           {{ student.total_score }}/{{ student.total_points }}
                         </td>
@@ -337,7 +331,7 @@
                         </td>
                         {% endfor %}
                         <td>
-                          {% if student.attempts == 0 %}
+                          {% if student.quiz_count == 0 %}
                           <span class="badge bg-secondary">Not Attempted</span>
                           {% elif student.percentage >= 60 %}
                           <span class="badge bg-success">&gt;=60%</span>
