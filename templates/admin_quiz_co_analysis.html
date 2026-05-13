@@ -80,24 +80,24 @@
               <div class="col-md-3">
                 <div class="card stats-card">
                   <div class="card-body">
+                    <h4>{{ students_attempted }}</h4>
+                    <p class="mb-0">Students Attempted</p>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-3">
+                <div class="card stats-card">
+                  <div class="card-body">
+                    <h4>{{ total_attempts }}</h4>
+                    <p class="mb-0">Completed Attempts</p>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-3">
+                <div class="card stats-card">
+                  <div class="card-body">
                     <h4>{{ "%.1f"|format(avg_score) }}%</h4>
-                    <p class="mb-0">Average Score</p>
-                  </div>
-                </div>
-              </div>
-              <div class="col-md-3">
-                <div class="card stats-card">
-                  <div class="card-body">
-                    <h4>{{ students_passed }}</h4>
-                    <p class="mb-0">Passed (≥60%)</p>
-                  </div>
-                </div>
-              </div>
-              <div class="col-md-3">
-                <div class="card stats-card">
-                  <div class="card-body">
-                    <h4>{{ "%.1f"|format(pass_percentage) }}%</h4>
-                    <p class="mb-0">Pass Rate</p>
+                    <p class="mb-0">Avg Across Attempts</p>
                   </div>
                 </div>
               </div>
@@ -145,7 +145,7 @@
                 <div class="card">
                   <div class="card-header">
                     <h5>
-                      <i class="fas fa-chart-pie me-2"></i>Quiz Performance
+                      <i class="fas fa-chart-pie me-2"></i>Student Average
                       Distribution
                     </h5>
                   </div>
@@ -197,7 +197,7 @@
                     <div class="row">
                       <div class="col-6">
                         <div class="text-center">
-                          <h6>Total Questions</h6>
+                          <h6>Questions Asked</h6>
                           <span class="badge bg-primary"
                             >{{ data.total_questions }}</span
                           >
@@ -205,7 +205,7 @@
                       </div>
                       <div class="col-6">
                         <div class="text-center">
-                          <h6>Max Marks</h6>
+                          <h6>Unique Max Marks</h6>
                           <span class="badge bg-info"
                             >{{ data.max_marks }}</span
                           >
@@ -277,8 +277,8 @@
             <div class="card">
               <div class="card-header">
                 <h5>
-                  <i class="fas fa-users me-2"></i>Individual Student
-                  Performance
+                  <i class="fas fa-users me-2"></i>Student Performance
+                  Across All Attempted Quizzes
                 </h5>
               </div>
               <div class="card-body">
@@ -288,8 +288,8 @@
                       <tr>
                         <th>Roll No</th>
                         <th>Attempts</th>
-                        <th>Best Score</th>
-                        <th>Overall %</th>
+                        <th>Total Score</th>
+                        <th>Overall % Across Attempts</th>
                         <th>CO1 %</th>
                         <th>CO2 %</th>
                         <th>CO3 %</th>
@@ -303,12 +303,12 @@
                       <tr class="student-row">
                         <td><strong>{{ student.rollnumber }}</strong></td>
                         <td>
-                          {{ student.best_score }}/{{ student.max_score }}
-                        </td>
-                        <td>
                           <span class="badge bg-secondary"
                             >{{ student.attempts }}</span
                           >
+                        </td>
+                        <td>
+                          {{ student.total_score }}/{{ student.total_points }}
                         </td>
                         <td>
                           <div class="progress" style="height: 20px">
@@ -322,13 +322,13 @@
                         </td>
                         {% for co in ['CO1', 'CO2', 'CO3', 'CO4', 'CO5'] %}
                         <td>
-                          {% if student.co_performance[co] and
-                          student.co_performance[co].percentage %}
+                          {% set co_data = student.co_performance.get(co) %}
+                          {% if co_data and co_data.total_marks > 0 %}
                           <span
-                            class="badge bg-{{ 'success' if student.co_performance[co].percentage >= 60 else 'warning' if student.co_performance[co].percentage >= 40 else 'danger' }}"
+                            class="badge bg-{{ 'success' if co_data.percentage >= 60 else 'warning' if co_data.percentage >= 40 else 'danger' }}"
                           >
                             {{
-                            "%.0f"|format(student.co_performance[co].percentage)
+                            "%.0f"|format(co_data.percentage)
                             }}%
                           </span>
                           {% else %}
@@ -340,9 +340,9 @@
                           {% if student.attempts == 0 %}
                           <span class="badge bg-secondary">Not Attempted</span>
                           {% elif student.percentage >= 60 %}
-                          <span class="badge bg-success">Passed</span>
+                          <span class="badge bg-success">&gt;=60%</span>
                           {% else %}
-                          <span class="badge bg-danger">Failed</span>
+                          <span class="badge bg-danger">&lt;60%</span>
                           {% endif %}
                         </td>
                       </tr>
@@ -364,7 +364,7 @@
               <div class="card-header">
                 <h5>
                   <i class="fas fa-clipboard-list me-2"></i>Quiz Question Bank
-                  Summary
+                  CO Summary
                 </h5>
               </div>
               <div class="card-body">
@@ -386,7 +386,54 @@
 
             <div class="card mt-4">
               <div class="card-header">
-                <h5><i class="fas fa-history me-2"></i>Recent Quiz Attempts</h5>
+                <h5><i class="fas fa-layer-group me-2"></i>Attempted Quiz Summary</h5>
+              </div>
+              <div class="card-body">
+                <div class="table-responsive">
+                  <table class="table">
+                    <thead class="table-light">
+                      <tr>
+                        <th>Quiz</th>
+                        <th>Students Attempted</th>
+                        <th>Completed Attempts</th>
+                        <th>Total Score</th>
+                        <th>Average %</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for quiz in quiz_summary %}
+                      <tr>
+                        <td>
+                          <strong>{{ quiz.quiz_title }}</strong>
+                          <div class="text-muted small">{{ quiz.quiz_name }}</div>
+                        </td>
+                        <td>{{ quiz.students_count }}</td>
+                        <td>{{ quiz.attempts }}</td>
+                        <td>{{ quiz.total_score }}/{{ quiz.total_points }}</td>
+                        <td>
+                          <span
+                            class="badge bg-{{ 'success' if quiz.average_percentage >= 60 else 'warning' if quiz.average_percentage >= 40 else 'danger' }}"
+                          >
+                            {{ "%.1f"|format(quiz.average_percentage) }}%
+                          </span>
+                        </td>
+                      </tr>
+                      {% else %}
+                      <tr>
+                        <td colspan="5" class="text-center text-muted">
+                          No completed quiz attempts yet.
+                        </td>
+                      </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <div class="card mt-4">
+              <div class="card-header">
+                <h5><i class="fas fa-history me-2"></i>All Completed Attempts</h5>
               </div>
               <div class="card-body">
                 <div class="table-responsive">
@@ -394,8 +441,9 @@
                     <thead class="table-light">
                       <tr>
                         <th>Student</th>
-                        <th>Total Attempts</th>
-                        <th>Best Score</th>
+                        <th>Quiz</th>
+                        <th>Attempt No</th>
+                        <th>Score</th>
                         <th>Percentage</th>
                         <th>Completed At</th>
                         <th>Duration</th>
@@ -405,9 +453,13 @@
                       {% for attempt in recent_attempts %}
                       <tr>
                         <td>{{ attempt.user.rollnumber }}</td>
-                        <td>{{ attempt.attempts }}</td>
                         <td>
-                          {{ attempt.best_score }}/{{ attempt.max_score }}
+                          <strong>{{ attempt.quiz_title }}</strong>
+                          <div class="text-muted small">{{ attempt.quiz_name }}</div>
+                        </td>
+                        <td>{{ attempt.attempt_number }}</td>
+                        <td>
+                          {{ attempt.score }}/{{ attempt.total_points }}
                         </td>
                         <td>
                           <span

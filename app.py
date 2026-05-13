@@ -10013,6 +10013,8 @@ def get_default_dom_consolidation_settings(admin_user=None):
 
     return {
         "quiz_best_count": quiz_count_default,
+        "quiz_selection_mode": "overall",
+        "quiz_co_best_counts": {co: 0 for co in QUIZ_CO_OPTIONS},
         "quiz_target_marks": 5.0,
         "assignment_best_count": 11,
         "assignment_target_marks": 10.0,
@@ -10029,12 +10031,20 @@ def get_dom_consolidation_settings(admin_user):
         stored = json.loads(raw_value)
         settings.update({
             "quiz_best_count": int(stored.get("quiz_best_count", settings["quiz_best_count"])),
+            "quiz_selection_mode": stored.get("quiz_selection_mode", settings["quiz_selection_mode"]),
+            "quiz_co_best_counts": {
+                co: int(stored.get("quiz_co_best_counts", {}).get(co, 0))
+                for co in QUIZ_CO_OPTIONS
+            },
             "quiz_target_marks": float(stored.get("quiz_target_marks", settings["quiz_target_marks"])),
             "assignment_best_count": int(stored.get("assignment_best_count", settings["assignment_best_count"])),
             "assignment_target_marks": float(stored.get("assignment_target_marks", settings["assignment_target_marks"])),
         })
     except Exception:
         return settings
+
+    if settings["quiz_selection_mode"] not in ["overall", "co_minimum"]:
+        settings["quiz_selection_mode"] = "overall"
 
     return settings
 
@@ -10058,6 +10068,35 @@ def get_dom_admin_quiz_names(admin_user):
     except Exception as e:
         print(f"⚠️ Error getting admin quiz names for consolidation: {e}")
         return [DEFAULT_QUIZ_NAME]
+
+
+def get_dom_admin_quiz_bank_map(admin_user):
+    try:
+        return {
+            quiz.quiz_name: quiz
+            for quiz in get_admin_quiz_banks(admin_user)
+            if getattr(quiz, "quiz_name", None)
+        }
+    except Exception as e:
+        print(f"Error getting admin quiz banks for consolidation: {e}")
+        return {}
+
+
+def get_dom_quiz_cos(quiz_name, quiz_bank_map=None):
+    quiz_bank_map = quiz_bank_map or {}
+    quiz_bank = quiz_bank_map.get(quiz_name) or get_quiz_bank_by_name(quiz_name)
+    cos = []
+    if quiz_bank and quiz_bank.covered_cos:
+        cos = parse_quiz_cos(quiz_bank.covered_cos)
+
+    if not cos and quiz_bank:
+        cos = sorted({
+            assignment.question.co_number
+            for assignment in getattr(quiz_bank, "question_assignments", [])
+            if assignment.question and assignment.question.co_number in QUIZ_CO_OPTIONS
+        })
+
+    return cos
 
 
 def load_uploaded_internal_marks(admin_id):
@@ -10119,7 +10158,51 @@ def calculate_dom_assignment_component(student, best_count, target_marks):
     }
 
 
-def calculate_dom_quiz_component(student, quiz_names, best_count, target_marks):
+def select_dom_quiz_components(components, settings):
+    best_count = max(0, int(settings.get("quiz_best_count", 0) or 0))
+    ranked = sorted(
+        components,
+        key=lambda item: (item["percentage"], item["score"], item["total_points"], item["quiz_name"]),
+        reverse=True
+    )
+
+    if settings.get("quiz_selection_mode") != "co_minimum":
+        return ranked[:best_count]
+
+    selected = []
+    selected_quizzes = set()
+    co_counts = settings.get("quiz_co_best_counts", {}) or {}
+
+    for co in QUIZ_CO_OPTIONS:
+        co_quota = max(0, int(co_counts.get(co, 0) or 0))
+        if co_quota <= 0:
+            continue
+
+        co_candidates = [
+            item for item in ranked
+            if item["quiz_name"] not in selected_quizzes and co in item.get("cos", [])
+        ]
+        for item in co_candidates[:co_quota]:
+            selected.append(item)
+            selected_quizzes.add(item["quiz_name"])
+
+    remaining_slots = max(0, best_count - len(selected))
+    if remaining_slots:
+        for item in ranked:
+            if item["quiz_name"] in selected_quizzes:
+                continue
+            selected.append(item)
+            selected_quizzes.add(item["quiz_name"])
+            remaining_slots -= 1
+            if remaining_slots == 0:
+                break
+
+    return selected[:best_count]
+
+
+def calculate_dom_quiz_component(student, quiz_names, target_marks, settings=None, quiz_bank_map=None):
+    settings = settings or {"quiz_best_count": 0, "quiz_selection_mode": "overall", "quiz_co_best_counts": {}}
+    quiz_bank_map = quiz_bank_map or {}
     components = []
     for quiz_name in quiz_names:
         attempts = (
@@ -10139,16 +10222,13 @@ def calculate_dom_quiz_component(student, quiz_names, best_count, target_marks):
         percentage = (score / total_points) if total_points > 0 else 0
         components.append({
             "quiz_name": quiz_name,
+            "cos": get_dom_quiz_cos(quiz_name, quiz_bank_map),
             "score": score,
             "total_points": total_points,
             "percentage": percentage
         })
 
-    selected = sorted(
-        components,
-        key=lambda item: (item["percentage"], item["score"], item["total_points"], item["quiz_name"]),
-        reverse=True
-    )[:max(0, best_count)]
+    selected = select_dom_quiz_components(components, settings)
 
     total_scored = sum(item["score"] for item in selected)
     total_possible = sum(item["total_points"] for item in selected)
@@ -10160,6 +10240,7 @@ def calculate_dom_quiz_component(student, quiz_names, best_count, target_marks):
         "total_scored": total_scored,
         "total_possible": total_possible,
         "converted_marks": converted,
+        "selection_mode": settings.get("quiz_selection_mode", "overall"),
     }
 
 
@@ -10174,10 +10255,11 @@ def calculate_dom_mid_average(mid1, mid2):
     return "N/A"
 
 
-def build_dom_consolidated_row(student, current_admin, uploaded_lookup=None, settings=None, quiz_names=None):
+def build_dom_consolidated_row(student, current_admin, uploaded_lookup=None, settings=None, quiz_names=None, quiz_bank_map=None):
     uploaded_lookup = uploaded_lookup or {}
     settings = settings or get_dom_consolidation_settings(current_admin)
     quiz_names = quiz_names or get_dom_admin_quiz_names(current_admin)
+    quiz_bank_map = quiz_bank_map or get_dom_admin_quiz_bank_map(current_admin)
 
     row = uploaded_lookup.get(str(student.rollnumber).strip(), {})
     mid1 = parse_numeric_mark(row.get("MID-I Marks (20)", "N/A"))
@@ -10192,8 +10274,9 @@ def build_dom_consolidated_row(student, current_admin, uploaded_lookup=None, set
     quiz_component = calculate_dom_quiz_component(
         student,
         quiz_names=quiz_names,
-        best_count=settings["quiz_best_count"],
-        target_marks=settings["quiz_target_marks"]
+        target_marks=settings["quiz_target_marks"],
+        settings=settings,
+        quiz_bank_map=quiz_bank_map
     )
 
     avg_mid = calculate_dom_mid_average(mid1, mid2)
@@ -10268,8 +10351,29 @@ def admin_consolidated_marks():
                 "info"
             )
 
+        quiz_selection_mode = request.form.get("quiz_selection_mode", "overall")
+        if quiz_selection_mode not in ["overall", "co_minimum"]:
+            quiz_selection_mode = "overall"
+
+        quiz_best_count = clamp_int("quiz_best_count", defaults["quiz_best_count"])
+        quiz_co_best_counts = {co: 0 for co in QUIZ_CO_OPTIONS}
+        if quiz_selection_mode == "co_minimum":
+            quiz_co_best_counts = {
+                co: clamp_int(f"quiz_co_best_counts_{co}", 0)
+                for co in QUIZ_CO_OPTIONS
+            }
+            co_minimum_total = sum(quiz_co_best_counts.values())
+            if co_minimum_total > quiz_best_count:
+                flash(
+                    f"CO-wise quiz counts total {co_minimum_total}, but overall best quizzes is {quiz_best_count}. Increase overall count or reduce CO counts.",
+                    "danger"
+                )
+                return redirect(url_for("admin_consolidated_marks"))
+
         settings = {
-            "quiz_best_count": clamp_int("quiz_best_count", defaults["quiz_best_count"]),
+            "quiz_best_count": quiz_best_count,
+            "quiz_selection_mode": quiz_selection_mode,
+            "quiz_co_best_counts": quiz_co_best_counts,
             "quiz_target_marks": quiz_target_marks,
             "assignment_best_count": clamp_int("assignment_best_count", defaults["assignment_best_count"], maximum=11),
             "assignment_target_marks": assignment_target_marks,
@@ -10286,6 +10390,11 @@ def admin_consolidated_marks():
 
     settings = get_dom_consolidation_settings(current_admin)
     quiz_names = get_dom_admin_quiz_names(current_admin)
+    quiz_bank_map = get_dom_admin_quiz_bank_map(current_admin)
+    quiz_cos_summary = {
+        quiz_name: get_dom_quiz_cos(quiz_name, quiz_bank_map)
+        for quiz_name in quiz_names
+    }
     _, uploaded_lookup = load_uploaded_internal_marks(current_admin.id)
 
     data = []
@@ -10295,7 +10404,8 @@ def admin_consolidated_marks():
             current_admin=current_admin,
             uploaded_lookup=uploaded_lookup,
             settings=settings,
-            quiz_names=quiz_names
+            quiz_names=quiz_names,
+            quiz_bank_map=quiz_bank_map
         ))
 
     return render_template(
@@ -10304,6 +10414,8 @@ def admin_consolidated_marks():
         current_admin=current_admin,
         settings=settings,
         quiz_names=quiz_names,
+        quiz_cos_summary=quiz_cos_summary,
+        quiz_co_options=QUIZ_CO_OPTIONS,
         dom_consolidation_total=DOM_CONSOLIDATION_TOTAL
     )
 
@@ -10331,6 +10443,7 @@ def download_consolidated_marks():
 
     settings = get_dom_consolidation_settings(current_admin)
     quiz_names = get_dom_admin_quiz_names(current_admin)
+    quiz_bank_map = get_dom_admin_quiz_bank_map(current_admin)
     _, uploaded_lookup = load_uploaded_internal_marks(current_admin.id)
 
     rows = []
@@ -10350,7 +10463,8 @@ def download_consolidated_marks():
             current_admin=current_admin,
             uploaded_lookup=uploaded_lookup,
             settings=settings,
-            quiz_names=quiz_names
+            quiz_names=quiz_names,
+            quiz_bank_map=quiz_bank_map
         )
         rows.append({column: row[column] for column in export_columns})
 
@@ -12186,39 +12300,6 @@ def admin_quiz_co_csv_download():
         # ✅ Sort students by rollnumber (ascending)
         students = sorted(students, key=lambda s: s.rollnumber)
 
-        # Find all question_ids that were actually asked in any student's best attempt
-        from sqlalchemy import func
-        best_attempt_ids = []
-        for student in students:
-            attempts = QuizAttempt.query.filter_by(user_id=student.id).filter(
-                QuizAttempt.completed_at.isnot(None)).all()
-            if attempts:
-                best_attempt = max(attempts, key=lambda x: x.score)
-                best_attempt_ids.append(best_attempt.id)
-
-        # Get all QuizResponse for these attempts
-        if best_attempt_ids:
-            asked_responses = QuizResponse.query.filter(
-                QuizResponse.attempt_id.in_(best_attempt_ids)).all()
-            asked_question_ids = set(r.question_id for r in asked_responses)
-        else:
-            asked_question_ids = set()
-
-        # Get only the QuizQuestions that were actually asked
-        if asked_question_ids:
-            asked_questions = QuizQuestion.query.filter(
-                QuizQuestion.id.in_(asked_question_ids)).all()
-        else:
-            asked_questions = []
-
-        # Calculate max marks per CO from only asked questions
-        co_max_marks = {}
-        for co_num in ['CO1', 'CO2', 'CO3', 'CO4', 'CO5']:
-            co_questions = [
-                q for q in asked_questions if q.co_number == co_num]
-            total_marks = sum(q.points for q in co_questions)
-            co_max_marks[co_num] = total_marks
-
         # Prepare CSV data
         import csv
         from io import StringIO
@@ -12226,33 +12307,47 @@ def admin_quiz_co_csv_download():
         output = StringIO()
         writer = csv.writer(output)
 
-        # Write header row with CO columns
-        writer.writerow(['', 'CO1', 'CO2', 'CO3', 'CO4', 'CO5'])
-
-        # Write CO MAX MARKS row
-        max_marks_row = ['QUIZ CO MAX MARKS']
-        for co_num in ['CO1', 'CO2', 'CO3', 'CO4', 'CO5']:
-            max_marks_row.append(int(co_max_marks.get(co_num, 0)))
-        writer.writerow(max_marks_row)
-
-        # Write empty row header for student data
-        writer.writerow(['Student Roll Number', '', '', '', '', ''])
+        writer.writerow([
+            'Student Roll Number',
+            'Completed Attempts',
+            'Total Marks Obtained',
+            'Total Possible Marks',
+            'Overall Percentage',
+            'CO1 Obtained', 'CO1 Max', 'CO1 Percentage',
+            'CO2 Obtained', 'CO2 Max', 'CO2 Percentage',
+            'CO3 Obtained', 'CO3 Max', 'CO3 Percentage',
+            'CO4 Obtained', 'CO4 Max', 'CO4 Percentage',
+            'CO5 Obtained', 'CO5 Max', 'CO5 Percentage',
+        ])
 
         # Write student data
         for student in students:
-            # Calculate quiz CO performance for this student
+            attempts = QuizAttempt.query.filter_by(user_id=student.id).filter(
+                QuizAttempt.completed_at.isnot(None)).all()
+            total_obtained = sum((attempt.score or 0) for attempt in attempts)
+            total_possible = sum((attempt.total_points or 0)
+                                 for attempt in attempts)
+            overall_percentage = (
+                total_obtained / total_possible * 100
+                if total_possible > 0 else 0
+            )
             co_performance = calculate_student_quiz_co_performance(student.id)
 
-            row = [student.rollnumber]
+            row = [
+                student.rollnumber,
+                len(attempts),
+                round(total_obtained, 2),
+                round(total_possible, 2),
+                round(overall_percentage, 2),
+            ]
 
             for co_num in ['CO1', 'CO2', 'CO3', 'CO4', 'CO5']:
-                if co_num in co_performance:
-                    # Get the marks obtained (not percentage)
-                    marks_obtained = co_performance[co_num].get(
-                        'marks_obtained', 0)
-                    row.append(int(marks_obtained))
-                else:
-                    row.append(0)
+                co_data = co_performance.get(co_num, {})
+                row.extend([
+                    round(co_data.get('marks_obtained', 0), 2),
+                    round(co_data.get('total_marks', 0), 2),
+                    round(co_data.get('percentage', 0), 2),
+                ])
 
             writer.writerow(row)
 
@@ -12712,10 +12807,12 @@ def student_consolidated_marks():
     uploaded_lookup = {}
     settings = get_default_dom_consolidation_settings(responsible_admin)
     quiz_names = [DEFAULT_QUIZ_NAME]
+    quiz_bank_map = {}
 
     if responsible_admin:
         settings = get_dom_consolidation_settings(responsible_admin)
         quiz_names = get_dom_admin_quiz_names(responsible_admin)
+        quiz_bank_map = get_dom_admin_quiz_bank_map(responsible_admin)
         _, uploaded_lookup = load_uploaded_internal_marks(responsible_admin.id)
 
     row = build_dom_consolidated_row(
@@ -12723,7 +12820,8 @@ def student_consolidated_marks():
         current_admin=responsible_admin or student,
         uploaded_lookup=uploaded_lookup,
         settings=settings,
-        quiz_names=quiz_names
+        quiz_names=quiz_names,
+        quiz_bank_map=quiz_bank_map
     )
 
     data = [row]
@@ -16133,7 +16231,7 @@ def admin_quiz_co_analysis():
         return redirect(url_for("login"))
 
     user = User.query.filter_by(rollnumber=session["rollnumber"]).first()
-    if not user or user.role != "admin":
+    if not user or user.role not in ["admin", "super_admin"]:
         flash("Access denied. Only admins can view quiz CO analysis.", "error")
         return redirect(url_for("student_dashboard"))
 
@@ -16185,12 +16283,12 @@ def admin_quiz_co_analysis():
 
             if attempt_count > 0:
                 attempted_students.add(student.id)
-                best_attempt = max(
-                    student_attempts, key=lambda x: x.score)
-                best_score = best_attempt.score
-                max_score = best_attempt.total_points
-                percentage = (best_score / max_score) * \
-                    100 if max_score > 0 else 0
+                total_score = sum((attempt.score or 0)
+                                  for attempt in student_attempts)
+                total_points = sum((attempt.total_points or 0)
+                                   for attempt in student_attempts)
+                percentage = (total_score / total_points) * \
+                    100 if total_points > 0 else 0
 
                 total_scores.append(percentage)
                 if percentage >= 60:
@@ -16203,19 +16301,17 @@ def admin_quiz_co_analysis():
                 student_performance.append({
                     'rollnumber': student.rollnumber,
                     'attempts': attempt_count,
-                    'best_score': best_score,
-                    'max_score': max_score,
+                    'total_score': total_score,
+                    'total_points': total_points,
                     'percentage': percentage,
                     'co_performance': co_performance
                 })
             else:
-                # Use max_attempts logic: 2 for students, None for admin (but admin is not shown here)
-                max_attempts = 2
                 student_performance.append({
                     'rollnumber': student.rollnumber,
                     'attempts': 0,
-                    'best_score': 0,
-                    'max_score': max_attempts,
+                    'total_score': 0,
+                    'total_points': 0,
                     'percentage': 0,
                     'co_performance': {}
                 })
@@ -16262,21 +16358,59 @@ def admin_quiz_co_analysis():
             question_bank_stats[co] = QuizQuestion.query.filter_by(
                 co_number=co).count()
 
-        # Show only summary per student: total attempts and highest marks
+        quiz_bank_titles = {
+            quiz.quiz_name: quiz.quiz_title
+            for quiz in QuizBank.query.all()
+        }
+
+        quiz_summary = {}
+        for attempt in all_attempts:
+            quiz_name = attempt.quiz_name or DEFAULT_QUIZ_NAME
+            summary = quiz_summary.setdefault(quiz_name, {
+                'quiz_name': quiz_name,
+                'quiz_title': quiz_bank_titles.get(quiz_name, quiz_name),
+                'attempts': 0,
+                'students': set(),
+                'total_score': 0,
+                'total_points': 0,
+                'average_percentage': 0
+            })
+            summary['attempts'] += 1
+            summary['students'].add(attempt.user_id)
+            summary['total_score'] += attempt.score or 0
+            summary['total_points'] += attempt.total_points or 0
+
+        for summary in quiz_summary.values():
+            summary['students_count'] = len(summary['students'])
+            summary['average_percentage'] = (
+                summary['total_score'] / summary['total_points'] * 100
+                if summary['total_points'] > 0 else 0
+            )
+            del summary['students']
+
+        quiz_summary = sorted(
+            quiz_summary.values(),
+            key=lambda item: item['quiz_title'].lower()
+        )
+
         recent_attempts = []
-        for student in students:
-            attempts = [a for a in all_attempts if a.user_id == student.id]
-            if attempts:
-                best_attempt = max(attempts, key=lambda x: x.score)
-                recent_attempts.append({
-                    'user': student,
-                    'attempts': len(attempts),
-                    'best_score': best_attempt.score,
-                    'max_score': best_attempt.total_points,
-                    'percentage': (best_attempt.score / best_attempt.total_points) * 100 if best_attempt.total_points > 0 else 0,
-                    'completed_at': best_attempt.completed_at,
-                    'started_at': best_attempt.started_at
-                })
+        for attempt in sorted(
+            all_attempts,
+            key=lambda item: item.completed_at or item.started_at or datetime.min,
+            reverse=True
+        ):
+            quiz_name = attempt.quiz_name or DEFAULT_QUIZ_NAME
+            recent_attempts.append({
+                'user': attempt.user,
+                'quiz_name': quiz_name,
+                'quiz_title': quiz_bank_titles.get(quiz_name, quiz_name),
+                'attempt_number': attempt.attempt_number,
+                'score': attempt.score or 0,
+                'total_points': attempt.total_points or 0,
+                'percentage': ((attempt.score or 0) / attempt.total_points) * 100 if attempt.total_points > 0 else 0,
+                'completed_at': attempt.completed_at,
+                'started_at': attempt.started_at
+            })
 
         # Prepare data for charts
         co_labels = list(co_analysis.keys())
@@ -16295,6 +16429,7 @@ def admin_quiz_co_analysis():
                                performance_distribution=performance_distribution,
                                attempt_distribution=attempt_distribution,
                                question_bank_stats=question_bank_stats,
+                               quiz_summary=quiz_summary,
                                recent_attempts=recent_attempts,
                                co_labels=co_labels,
                                co_percentages=co_percentages)
@@ -16307,7 +16442,7 @@ def admin_quiz_co_analysis():
 
 
 def calculate_student_quiz_co_performance(user_id):
-    """Calculate CO-wise performance for a student in quiz"""
+    """Calculate CO-wise performance across all completed quiz attempts."""
     co_performance = {}
 
     # Get all completed attempts for this user
@@ -16318,11 +16453,10 @@ def calculate_student_quiz_co_performance(user_id):
     if not attempts:
         return co_performance
 
-    # Get best attempt
-    best_attempt = max(attempts, key=lambda x: x.score)
-
-    # Get responses for best attempt
-    responses = QuizResponse.query.filter_by(attempt_id=best_attempt.id).all()
+    attempt_ids = [attempt.id for attempt in attempts]
+    responses = QuizResponse.query.filter(
+        QuizResponse.attempt_id.in_(attempt_ids)
+    ).all()
 
     # Calculate CO-wise scores
     for co in ['CO1', 'CO2', 'CO3', 'CO4', 'CO5']:
@@ -16348,24 +16482,26 @@ def calculate_student_quiz_co_performance(user_id):
 
 
 def calculate_quiz_co_analysis(student_ids):
-    """Calculate overall CO analysis for quiz performance"""
+    """Calculate overall CO analysis across every completed quiz attempt."""
     co_analysis = {}
 
-    # Find all best attempt IDs for these students
-    best_attempt_ids = []
-    for student_id in student_ids:
-        attempts = QuizAttempt.query.filter_by(user_id=student_id).filter(
-            QuizAttempt.completed_at.isnot(None)).all()
-        if attempts:
-            best_attempt = max(attempts, key=lambda x: x.score)
-            best_attempt_ids.append(best_attempt.id)
+    attempt_rows = db.session.query(
+        QuizAttempt.id,
+        QuizAttempt.user_id
+    ).filter(
+            QuizAttempt.user_id.in_(student_ids),
+            QuizAttempt.completed_at.isnot(None)
+    ).all()
+    attempt_ids = [row.id for row in attempt_rows]
+    attempt_owner = {row.id: row.user_id for row in attempt_rows}
 
-    # Get all QuizResponses for these best attempts
-    if best_attempt_ids:
+    # Get all QuizResponses for every completed attempt
+    if attempt_ids:
         asked_responses = QuizResponse.query.filter(
-            QuizResponse.attempt_id.in_(best_attempt_ids)).all()
+            QuizResponse.attempt_id.in_(attempt_ids)).all()
         asked_question_ids = set(r.question_id for r in asked_responses)
     else:
+        asked_responses = []
         asked_question_ids = set()
 
     # Get only the QuizQuestions that were actually asked
@@ -16374,6 +16510,12 @@ def calculate_quiz_co_analysis(student_ids):
             QuizQuestion.id.in_(asked_question_ids)).all()
     else:
         asked_questions_all = []
+
+    responses_by_student = {}
+    for response in asked_responses:
+        student_id = attempt_owner.get(response.attempt_id)
+        if student_id is not None:
+            responses_by_student.setdefault(student_id, []).append(response)
 
     for co in ['CO1', 'CO2', 'CO3', 'CO4', 'CO5']:
         # Only count questions for this CO that were actually asked
@@ -16391,25 +16533,19 @@ def calculate_quiz_co_analysis(student_ids):
         co_percentages = []
 
         for student_id in student_ids:
-            # Get best attempt for this student
-            attempts = QuizAttempt.query.filter_by(
-                user_id=student_id
-            ).filter(QuizAttempt.completed_at.isnot(None)).all()
+            co_responses = [
+                r for r in responses_by_student.get(student_id, [])
+                if r.question.co_number == co
+                and r.question_id in asked_question_ids
+            ]
 
-            if attempts:
-                best_attempt = max(attempts, key=lambda x: x.score)
-                responses = QuizResponse.query.filter_by(
-                    attempt_id=best_attempt.id).all()
-                co_responses = [
-                    r for r in responses if r.question.co_number == co and r.question_id in asked_question_ids]
-
-                if co_responses:
-                    total_scored = sum(r.points_earned for r in co_responses)
-                    total_possible = sum(
-                        r.question.points for r in co_responses)
-                    percentage = (total_scored / total_possible) * \
-                        100 if total_possible > 0 else 0
-                    co_percentages.append(percentage)
+            if co_responses:
+                total_scored = sum(r.points_earned for r in co_responses)
+                total_possible = sum(
+                    r.question.points for r in co_responses)
+                percentage = (total_scored / total_possible) * \
+                    100 if total_possible > 0 else 0
+                co_percentages.append(percentage)
 
         # Calculate statistics
         if co_percentages:
