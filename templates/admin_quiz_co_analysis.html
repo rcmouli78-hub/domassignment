@@ -205,7 +205,7 @@
                       </div>
                       <div class="col-6">
                         <div class="text-center">
-                          <h6>Unique Max Marks</h6>
+                          <h6>Question Share</h6>
                           <span class="badge bg-info"
                             >{{ data.max_marks }}</span
                           >
@@ -395,8 +395,8 @@
                       <tr>
                         <th>Quiz</th>
                         <th>Students Attempted</th>
-                        <th>Completed Attempts</th>
-                        <th>Total Score</th>
+                        <th>Top Roll Numbers</th>
+                        <th>Score</th>
                         <th>Average %</th>
                       </tr>
                     </thead>
@@ -408,8 +408,14 @@
                           <div class="text-muted small">{{ quiz.quiz_name }}</div>
                         </td>
                         <td>{{ quiz.students_count }}</td>
-                        <td>{{ quiz.attempts }}</td>
-                        <td>{{ quiz.total_score }}/{{ quiz.total_points }}</td>
+                        <td>
+                          {% if quiz.top_rollnumbers %}
+                          {{ quiz.top_rollnumbers|join(', ') }}
+                          {% else %}
+                          <span class="text-muted">-</span>
+                          {% endif %}
+                        </td>
+                        <td>{{ quiz.highest_score }}/{{ quiz.highest_total_points }}</td>
                         <td>
                           <span
                             class="badge bg-{{ 'success' if quiz.average_percentage >= 60 else 'warning' if quiz.average_percentage >= 40 else 'danger' }}"

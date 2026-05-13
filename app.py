@@ -5300,33 +5300,88 @@ def select_random_questions_for_quiz(quiz_bank):
         return []
 
     target_count = get_quiz_questions_per_attempt(quiz_bank, available_count=len(quiz_questions))
+    covered_cos = parse_quiz_cos(getattr(quiz_bank, "covered_cos", None) or [])
+    if not covered_cos:
+        covered_cos = sorted({
+            question.co_number
+            for question in quiz_questions
+            if question.co_number in QUIZ_CO_OPTIONS
+        })
+
     questions_by_co = {}
     for question in quiz_questions:
+        if covered_cos and question.co_number not in covered_cos:
+            continue
         questions_by_co.setdefault(question.co_number or "UNSPECIFIED", []).append(question)
 
     for pool in questions_by_co.values():
         random.shuffle(pool)
 
-    co_keys = list(questions_by_co.keys())
-    random.shuffle(co_keys)
+    co_keys = [co for co in covered_cos if questions_by_co.get(co)]
+    if not co_keys:
+        co_keys = [co for co, pool in questions_by_co.items() if pool]
 
     selected_questions = []
-    while len(selected_questions) < target_count and any(questions_by_co.values()):
-        progressed = False
-        for co_key in co_keys:
-            pool = questions_by_co.get(co_key) or []
-            if not pool:
-                continue
-            selected_questions.append(pool.pop())
-            progressed = True
-            if len(selected_questions) >= target_count:
-                break
-        if not progressed:
+    base_quota = target_count // len(co_keys) if co_keys else 0
+    remainder = target_count % len(co_keys) if co_keys else 0
+    quotas = {co: base_quota for co in co_keys}
+
+    remainder_cos = co_keys[:]
+    random.shuffle(remainder_cos)
+    for co in remainder_cos:
+        if remainder <= 0:
             break
-        random.shuffle(co_keys)
+        quotas[co] += 1
+        remainder -= 1
+
+    for co in co_keys:
+        pool = questions_by_co.get(co) or []
+        take_count = min(quotas.get(co, 0), len(pool))
+        for _ in range(take_count):
+            selected_questions.append(pool.pop())
+
+    if len(selected_questions) < target_count:
+        remaining_questions = []
+        for co in co_keys:
+            remaining_questions.extend(questions_by_co.get(co) or [])
+        random.shuffle(remaining_questions)
+        needed = target_count - len(selected_questions)
+        selected_questions.extend(remaining_questions[:needed])
+
+    if len(selected_questions) < target_count:
+        fallback_questions = [
+            question for question in quiz_questions
+            if question not in selected_questions
+        ]
+        random.shuffle(fallback_questions)
+        selected_questions.extend(fallback_questions[:target_count - len(selected_questions)])
 
     random.shuffle(selected_questions)
     return selected_questions
+
+
+def get_quiz_co_question_share(quiz_bank):
+    covered_cos = parse_quiz_cos(getattr(quiz_bank, "covered_cos", None) or [])
+    if not covered_cos:
+        covered_cos = sorted({
+            question.co_number
+            for question in get_quiz_questions(quiz_bank)
+            if question.co_number in QUIZ_CO_OPTIONS
+        })
+
+    if not covered_cos:
+        return {}
+
+    target_count = get_quiz_questions_per_attempt(quiz_bank)
+    base_quota = target_count // len(covered_cos)
+    remainder = target_count % len(covered_cos)
+    shares = {co: float(base_quota) for co in covered_cos}
+    for co in covered_cos:
+        if remainder <= 0:
+            break
+        shares[co] += 1.0
+        remainder -= 1
+    return shares
 
 
 def assign_question_to_quiz(quiz_bank, question):
@@ -16661,23 +16716,52 @@ def admin_quiz_co_analysis():
             summary = quiz_summary.setdefault(quiz_name, {
                 'quiz_name': quiz_name,
                 'quiz_title': quiz_bank_titles.get(quiz_name, quiz_name),
-                'attempts': 0,
-                'students': set(),
-                'total_score': 0,
-                'total_points': 0,
+                'students': {},
+                'highest_score': 0,
+                'highest_total_points': 0,
+                'top_rollnumbers': [],
+                'total_percentage': 0,
                 'average_percentage': 0
             })
-            summary['attempts'] += 1
-            summary['students'].add(attempt.user_id)
-            summary['total_score'] += attempt.score or 0
-            summary['total_points'] += attempt.total_points or 0
+            current_best = summary['students'].get(attempt.user_id)
+            current_score = attempt.score or 0
+            current_total = attempt.total_points or 0
+            current_percentage = (current_score / current_total * 100) if current_total > 0 else 0
+            if (
+                current_best is None
+                or current_score > current_best['score']
+                or (current_score == current_best['score'] and current_percentage > current_best['percentage'])
+            ):
+                summary['students'][attempt.user_id] = {
+                    'rollnumber': attempt.user.rollnumber if attempt.user else '',
+                    'score': current_score,
+                    'total_points': current_total,
+                    'percentage': current_percentage
+                }
 
         for summary in quiz_summary.values():
             summary['students_count'] = len(summary['students'])
-            summary['average_percentage'] = (
-                summary['total_score'] / summary['total_points'] * 100
-                if summary['total_points'] > 0 else 0
-            )
+            best_attempts = list(summary['students'].values())
+            if best_attempts:
+                summary['highest_score'] = max(item['score'] for item in best_attempts)
+                highest_attempt = max(
+                    best_attempts,
+                    key=lambda item: (item['score'], item['total_points'], item['percentage'])
+                )
+                summary['highest_total_points'] = highest_attempt['total_points']
+                summary['top_rollnumbers'] = sorted(
+                    item['rollnumber']
+                    for item in best_attempts
+                    if item['score'] == summary['highest_score']
+                )
+                summary['average_percentage'] = (
+                    sum(item['percentage'] for item in best_attempts) / len(best_attempts)
+                )
+            else:
+                summary['highest_score'] = 0
+                summary['highest_total_points'] = 0
+                summary['top_rollnumbers'] = []
+                summary['average_percentage'] = 0
             del summary['students']
 
         quiz_summary = sorted(
@@ -16735,7 +16819,10 @@ def admin_quiz_co_analysis():
 
 def calculate_student_quiz_co_performance(user_id):
     """Calculate CO-wise performance across all completed quiz attempts."""
-    co_performance = {}
+    co_totals = {
+        co: {"marks_obtained": 0.0, "total_marks": 0.0}
+        for co in QUIZ_CO_OPTIONS
+    }
 
     # Get all completed attempts for this user
     attempts = QuizAttempt.query.filter_by(
@@ -16743,21 +16830,57 @@ def calculate_student_quiz_co_performance(user_id):
     ).filter(QuizAttempt.completed_at.isnot(None)).all()
 
     if not attempts:
-        return co_performance
+        return {}
 
     attempt_ids = [attempt.id for attempt in attempts]
+    attempt_quiz_name = {
+        attempt.id: (attempt.quiz_name or DEFAULT_QUIZ_NAME)
+        for attempt in attempts
+    }
+    quiz_names = sorted(set(attempt_quiz_name.values()))
+    quiz_bank_map = {
+        quiz.quiz_name: quiz
+        for quiz in QuizBank.query.filter(QuizBank.quiz_name.in_(quiz_names)).all()
+    }
     responses = QuizResponse.query.filter(
         QuizResponse.attempt_id.in_(attempt_ids)
     ).all()
+    responses_by_attempt = {}
+    for response in responses:
+        responses_by_attempt.setdefault(response.attempt_id, []).append(response)
+
+    for attempt_id, attempt_responses in responses_by_attempt.items():
+        quiz_name = attempt_quiz_name.get(attempt_id, DEFAULT_QUIZ_NAME)
+        quiz_cos = get_dom_quiz_cos(quiz_name, quiz_bank_map)
+        if not quiz_cos:
+            quiz_cos = sorted({
+                response.question.co_number
+                for response in attempt_responses
+                if response.question and response.question.co_number in QUIZ_CO_OPTIONS
+            })
+        quiz_cos = [co for co in quiz_cos if co in QUIZ_CO_OPTIONS]
+        if not quiz_cos:
+            continue
+
+        co_shares = get_quiz_co_question_share(quiz_bank_map.get(quiz_name))
+        if not co_shares:
+            co_shares = {co: 1.0 for co in quiz_cos}
+        total_share = sum(co_shares.get(co, 0) for co in quiz_cos) or len(quiz_cos)
+        attempt_scored = sum(response.points_earned for response in attempt_responses)
+        attempt_possible = sum(response.question.points for response in attempt_responses)
+        for co in quiz_cos:
+            weight = co_shares.get(co, 0) / total_share
+            co_totals[co]["marks_obtained"] += attempt_scored * weight
+            co_totals[co]["total_marks"] += attempt_possible * weight
 
     # Calculate CO-wise scores
+    co_performance = {}
     for co in ['CO1', 'CO2', 'CO3', 'CO4', 'CO5']:
-        co_responses = [r for r in responses if r.question.co_number == co]
-        if co_responses:
-            total_scored = sum(r.points_earned for r in co_responses)
-            total_possible = sum(r.question.points for r in co_responses)
+        total_scored = co_totals[co]["marks_obtained"]
+        total_possible = co_totals[co]["total_marks"]
+        if total_possible > 0:
             percentage = (total_scored / total_possible) * \
-                100 if total_possible > 0 else 0
+                100
             co_performance[co] = {
                 'marks_obtained': total_scored,
                 'total_marks': total_possible,
@@ -16779,29 +16902,30 @@ def calculate_quiz_co_analysis(student_ids):
 
     attempt_rows = db.session.query(
         QuizAttempt.id,
-        QuizAttempt.user_id
+        QuizAttempt.user_id,
+        QuizAttempt.quiz_name
     ).filter(
             QuizAttempt.user_id.in_(student_ids),
             QuizAttempt.completed_at.isnot(None)
     ).all()
     attempt_ids = [row.id for row in attempt_rows]
     attempt_owner = {row.id: row.user_id for row in attempt_rows}
-
+    attempt_quiz_name = {row.id: (row.quiz_name or DEFAULT_QUIZ_NAME) for row in attempt_rows}
+    quiz_names = sorted(set(attempt_quiz_name.values()))
+    quiz_bank_map = {
+        quiz.quiz_name: quiz
+        for quiz in QuizBank.query.filter(QuizBank.quiz_name.in_(quiz_names)).all()
+    }
     # Get all QuizResponses for every completed attempt
     if attempt_ids:
         asked_responses = QuizResponse.query.filter(
             QuizResponse.attempt_id.in_(attempt_ids)).all()
-        asked_question_ids = set(r.question_id for r in asked_responses)
     else:
         asked_responses = []
-        asked_question_ids = set()
 
-    # Get only the QuizQuestions that were actually asked
-    if asked_question_ids:
-        asked_questions_all = QuizQuestion.query.filter(
-            QuizQuestion.id.in_(asked_question_ids)).all()
-    else:
-        asked_questions_all = []
+    responses_by_attempt = {}
+    for response in asked_responses:
+        responses_by_attempt.setdefault(response.attempt_id, []).append(response)
 
     responses_by_student = {}
     for response in asked_responses:
@@ -16809,15 +16933,40 @@ def calculate_quiz_co_analysis(student_ids):
         if student_id is not None:
             responses_by_student.setdefault(student_id, []).append(response)
 
+    quiz_posted_counts = {
+        co: {"questions": 0.0, "marks": 0.0}
+        for co in QUIZ_CO_OPTIONS
+    }
+
+    for quiz_name in quiz_names:
+        quiz_cos = get_dom_quiz_cos(quiz_name, quiz_bank_map)
+        quiz_cos = [co for co in quiz_cos if co in QUIZ_CO_OPTIONS]
+        if not quiz_cos:
+            continue
+
+        quiz_bank = quiz_bank_map.get(quiz_name)
+        co_shares = get_quiz_co_question_share(quiz_bank)
+        if not co_shares:
+            base_quota = 10 // len(quiz_cos)
+            remainder = 10 % len(quiz_cos)
+            co_shares = {co: float(base_quota) for co in quiz_cos}
+            for co in quiz_cos:
+                if remainder <= 0:
+                    break
+                co_shares[co] += 1.0
+                remainder -= 1
+
+        for co, co_share_count in co_shares.items():
+            quiz_posted_counts[co]["questions"] += co_share_count
+            quiz_posted_counts[co]["marks"] += co_share_count
+
     for co in ['CO1', 'CO2', 'CO3', 'CO4', 'CO5']:
-        # Only count questions for this CO that were actually asked
-        asked_questions = [q for q in asked_questions_all if q.co_number == co]
-        total_questions = len(asked_questions)
-        max_marks = sum(q.points for q in asked_questions)
+        total_questions = round(quiz_posted_counts[co]["questions"], 2)
+        max_marks = round(quiz_posted_counts[co]["marks"], 2)
 
         # Debug print for admin: show which questions are being counted for this CO
         print(
-            f"[CO-DEBUG] {co}: asked_questions={[{'id': q.id, 'points': q.points} for q in asked_questions]}")
+            f"[CO-DEBUG] {co}: posted_questions={total_questions}, posted_max_marks={max_marks}")
         print(
             f"[CO-DEBUG] {co}: total_questions={total_questions}, max_marks={max_marks}")
 
@@ -16825,18 +16974,35 @@ def calculate_quiz_co_analysis(student_ids):
         co_percentages = []
 
         for student_id in student_ids:
-            co_responses = [
-                r for r in responses_by_student.get(student_id, [])
-                if r.question.co_number == co
-                and r.question_id in asked_question_ids
-            ]
+            co_scored = 0.0
+            co_possible = 0.0
+            for attempt_id, responses in responses_by_attempt.items():
+                if attempt_owner.get(attempt_id) != student_id:
+                    continue
+                quiz_name = attempt_quiz_name.get(attempt_id, DEFAULT_QUIZ_NAME)
+                quiz_cos = get_dom_quiz_cos(quiz_name, quiz_bank_map)
+                if not quiz_cos:
+                    quiz_cos = sorted({
+                        response.question.co_number
+                        for response in responses
+                        if response.question and response.question.co_number in QUIZ_CO_OPTIONS
+                    })
+                quiz_cos = [quiz_co for quiz_co in quiz_cos if quiz_co in QUIZ_CO_OPTIONS]
+                if co not in quiz_cos:
+                    continue
 
-            if co_responses:
-                total_scored = sum(r.points_earned for r in co_responses)
-                total_possible = sum(
-                    r.question.points for r in co_responses)
-                percentage = (total_scored / total_possible) * \
-                    100 if total_possible > 0 else 0
+                co_shares = get_quiz_co_question_share(quiz_bank_map.get(quiz_name))
+                if not co_shares:
+                    co_shares = {quiz_co: 1.0 for quiz_co in quiz_cos}
+                total_share = sum(co_shares.get(quiz_co, 0) for quiz_co in quiz_cos) or len(quiz_cos)
+                weight = co_shares.get(co, 0) / total_share
+                attempt_scored = sum(response.points_earned for response in responses)
+                attempt_possible = sum(response.question.points for response in responses)
+                co_scored += attempt_scored * weight
+                co_possible += attempt_possible * weight
+
+            if co_possible > 0:
+                percentage = (co_scored / co_possible) * 100
                 co_percentages.append(percentage)
 
         # Calculate statistics
