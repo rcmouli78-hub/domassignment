@@ -109,7 +109,7 @@
                 </div>
                 <h6 class="card-title text-secondary">Assignment Marks</h6>
                 <div class="marks-value text-secondary">{{ student_data['Assignment Marks (10)'] }}</div>
-                <small class="text-muted">out of 10</small>
+                <small class="text-muted">out of {{ settings.assignment_target_marks }}</small>
                 <div class="mt-2">
                   <small class="badge bg-secondary">Practical Work</small>
                 </div>
@@ -128,7 +128,7 @@
                 </div>
                 <h6 class="card-title text-dark">Quiz Marks</h6>
                 <div class="marks-value text-dark">{{ student_data['Quiz Marks (5)'] }}</div>
-                <small class="text-muted">out of 5</small>
+                <small class="text-muted">out of {{ settings.quiz_target_marks }}</small>
                 <div class="mt-2">
                   <small class="badge bg-dark">Quick Assessment</small>
                 </div>
@@ -229,10 +229,10 @@
                   <tr>
                     <td><strong>Assignment Marks</strong></td>
                     <td>{{ student_data['Assignment Marks (10)'] }}</td>
-                    <td>10</td>
+                    <td>{{ settings.assignment_target_marks }}</td>
                     <td>
-                      {% if student_data['Assignment Marks (10)'] != "N/A" %}
-                        {{ "%.1f"|format((student_data['Assignment Marks (10)']|float / 10 * 100)) }}%
+                      {% if student_data['Assignment Marks (10)'] != "N/A" and settings.assignment_target_marks > 0 %}
+                        {{ "%.1f"|format((student_data['Assignment Marks (10)']|float / settings.assignment_target_marks * 100)) }}%
                       {% else %}
                         N/A
                       {% endif %}
@@ -241,10 +241,10 @@
                   <tr>
                     <td><strong>Quiz Marks</strong></td>
                     <td>{{ student_data['Quiz Marks (5)'] }}</td>
-                    <td>5</td>
+                    <td>{{ settings.quiz_target_marks }}</td>
                     <td>
-                      {% if student_data['Quiz Marks (5)'] != "N/A" %}
-                        {{ "%.1f"|format((student_data['Quiz Marks (5)']|float / 5 * 100)) }}%
+                      {% if student_data['Quiz Marks (5)'] != "N/A" and settings.quiz_target_marks > 0 %}
+                        {{ "%.1f"|format((student_data['Quiz Marks (5)']|float / settings.quiz_target_marks * 100)) }}%
                       {% else %}
                         N/A
                       {% endif %}

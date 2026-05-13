@@ -9482,7 +9482,7 @@ def admin_dashboard():
     # Quiz info per student
     try:
         for user in users:
-            quiz_attempts = QuizAttempt.query.filter_by(user_id=user.id).all()
+            quiz_attempts = QuizAttempt.query.filter_by(user_id=user.id, quiz_name=DEFAULT_QUIZ_NAME).all()
             if quiz_attempts:
                 user.quiz_best_score = max(a.score for a in quiz_attempts)
                 user.quiz_total_points = quiz_attempts[0].total_points if quiz_attempts else 0
@@ -9661,7 +9661,7 @@ def dom_subject_admin_dashboard():
     try:
         for user in users:
             # Get quiz attempts for this user
-            quiz_attempts = QuizAttempt.query.filter_by(user_id=user.id).all()
+            quiz_attempts = QuizAttempt.query.filter_by(user_id=user.id, quiz_name=DEFAULT_QUIZ_NAME).all()
 
             if quiz_attempts:
                 # Get best score and total attempts
@@ -9996,11 +9996,236 @@ def upload_internal_marks():
     return redirect(url_for("admin_consolidated_marks"))
 
 
-@app.route("/admin_consolidated_marks")
-def admin_consolidated_marks():
-    import os
-    import pandas as pd
+DOM_CONSOLIDATION_TOTAL = 15
 
+
+def get_dom_consolidation_settings_key(admin_id):
+    return f"dom_consolidation_settings_{admin_id}"
+
+
+def get_default_dom_consolidation_settings(admin_user=None):
+    quiz_count_default = 0
+    if admin_user:
+        try:
+            quiz_count_default = len(get_admin_quiz_banks(admin_user))
+        except Exception:
+            quiz_count_default = 0
+
+    return {
+        "quiz_best_count": quiz_count_default,
+        "quiz_target_marks": 5.0,
+        "assignment_best_count": 11,
+        "assignment_target_marks": 10.0,
+    }
+
+
+def get_dom_consolidation_settings(admin_user):
+    settings = get_default_dom_consolidation_settings(admin_user)
+    raw_value = get_config(get_dom_consolidation_settings_key(admin_user.id))
+    if not raw_value:
+        return settings
+
+    try:
+        stored = json.loads(raw_value)
+        settings.update({
+            "quiz_best_count": int(stored.get("quiz_best_count", settings["quiz_best_count"])),
+            "quiz_target_marks": float(stored.get("quiz_target_marks", settings["quiz_target_marks"])),
+            "assignment_best_count": int(stored.get("assignment_best_count", settings["assignment_best_count"])),
+            "assignment_target_marks": float(stored.get("assignment_target_marks", settings["assignment_target_marks"])),
+        })
+    except Exception:
+        return settings
+
+    return settings
+
+
+def save_dom_consolidation_settings(admin_user, settings):
+    set_config(
+        get_dom_consolidation_settings_key(admin_user.id),
+        json.dumps(settings, separators=(",", ":"))
+    )
+
+
+def get_dom_admin_quiz_names(admin_user):
+    try:
+        quiz_names = {
+            quiz.quiz_name for quiz in get_admin_quiz_banks(admin_user)
+            if getattr(quiz, "quiz_name", None)
+        }
+        if DEFAULT_QUIZ_NAME not in quiz_names:
+            quiz_names.add(DEFAULT_QUIZ_NAME)
+        return sorted(quiz_names)
+    except Exception as e:
+        print(f"⚠️ Error getting admin quiz names for consolidation: {e}")
+        return [DEFAULT_QUIZ_NAME]
+
+
+def load_uploaded_internal_marks(admin_id):
+    uploaded_data = []
+    uploaded_lookup = {}
+    try:
+        upload_path = os.path.join(
+            os.getcwd(), "tmp_uploads", f"internal_marks_{admin_id}.csv")
+        if os.path.exists(upload_path):
+            df = pd.read_csv(upload_path)
+            uploaded_data = df.to_dict(orient="records")
+            for row in uploaded_data:
+                roll = str(row.get("Roll Number", "")).strip()
+                if roll:
+                    uploaded_lookup[roll] = row
+    except Exception as e:
+        print(f"⚠️ Unable to read uploaded internal marks file for admin {admin_id}: {e}")
+
+    return uploaded_data, uploaded_lookup
+
+
+def parse_numeric_mark(value, default="N/A"):
+    if value is None:
+        return default
+    text = str(value).strip()
+    if not text or text.lower() == "nan":
+        return default
+    return value
+
+
+def calculate_dom_assignment_component(student, best_count, target_marks):
+    components = []
+    for problem_no in range(1, 12):
+        score = float(getattr(student, f"p{problem_no}_score", 0) or 0)
+        max_marks = float(get_max_marks_for_problem(problem_no) or 0)
+        percentage = (score / max_marks) if max_marks > 0 else 0
+        components.append({
+            "problem_no": problem_no,
+            "score": score,
+            "max_marks": max_marks,
+            "percentage": percentage
+        })
+
+    selected = sorted(
+        components,
+        key=lambda item: (item["percentage"], item["score"], item["max_marks"], -item["problem_no"]),
+        reverse=True
+    )[:max(0, best_count)]
+
+    total_scored = sum(item["score"] for item in selected)
+    total_possible = sum(item["max_marks"] for item in selected)
+    converted = round((total_scored / total_possible) * target_marks, 2) if total_possible > 0 else 0.0
+
+    return {
+        "selected_count": len(selected),
+        "total_scored": total_scored,
+        "total_possible": total_possible,
+        "converted_marks": converted,
+    }
+
+
+def calculate_dom_quiz_component(student, quiz_names, best_count, target_marks):
+    components = []
+    for quiz_name in quiz_names:
+        attempts = (
+            QuizAttempt.query.filter_by(user_id=student.id, quiz_name=quiz_name)
+            .filter(QuizAttempt.completed_at.isnot(None))
+            .all()
+        )
+        if not attempts:
+            continue
+
+        best_attempt = max(
+            attempts,
+            key=lambda attempt: ((attempt.score or 0), (attempt.total_points or 0), attempt.completed_at or attempt.started_at or datetime.min)
+        )
+        total_points = float(best_attempt.total_points or 0)
+        score = float(best_attempt.score or 0)
+        percentage = (score / total_points) if total_points > 0 else 0
+        components.append({
+            "quiz_name": quiz_name,
+            "score": score,
+            "total_points": total_points,
+            "percentage": percentage
+        })
+
+    selected = sorted(
+        components,
+        key=lambda item: (item["percentage"], item["score"], item["total_points"], item["quiz_name"]),
+        reverse=True
+    )[:max(0, best_count)]
+
+    total_scored = sum(item["score"] for item in selected)
+    total_possible = sum(item["total_points"] for item in selected)
+    converted = round((total_scored / total_possible) * target_marks, 2) if total_possible > 0 else 0.0
+
+    return {
+        "selected_count": len(selected),
+        "available_count": len(components),
+        "total_scored": total_scored,
+        "total_possible": total_possible,
+        "converted_marks": converted,
+    }
+
+
+def calculate_dom_mid_average(mid1, mid2):
+    try:
+        if str(mid1).replace('.', '', 1).isdigit() and str(mid2).replace('.', '', 1).isdigit():
+            m1, m2 = float(mid1), float(mid2)
+            best, second = sorted([m1, m2], reverse=True)
+            return round((2 / 3) * best + (1 / 3) * second, 2)
+    except Exception:
+        pass
+    return "N/A"
+
+
+def build_dom_consolidated_row(student, current_admin, uploaded_lookup=None, settings=None, quiz_names=None):
+    uploaded_lookup = uploaded_lookup or {}
+    settings = settings or get_dom_consolidation_settings(current_admin)
+    quiz_names = quiz_names or get_dom_admin_quiz_names(current_admin)
+
+    row = uploaded_lookup.get(str(student.rollnumber).strip(), {})
+    mid1 = parse_numeric_mark(row.get("MID-I Marks (20)", "N/A"))
+    mid2 = parse_numeric_mark(row.get("MID-II Marks (20)", "N/A"))
+    attendance = parse_numeric_mark(row.get("Attendance Marks (5)", "N/A"))
+
+    assignment_component = calculate_dom_assignment_component(
+        student,
+        best_count=settings["assignment_best_count"],
+        target_marks=settings["assignment_target_marks"]
+    )
+    quiz_component = calculate_dom_quiz_component(
+        student,
+        quiz_names=quiz_names,
+        best_count=settings["quiz_best_count"],
+        target_marks=settings["quiz_target_marks"]
+    )
+
+    avg_mid = calculate_dom_mid_average(mid1, mid2)
+    attendance_value = 0.0
+    if str(attendance).replace('.', '', 1).isdigit():
+        attendance_value = float(attendance)
+
+    final_internal = "N/A"
+    if isinstance(avg_mid, (int, float)):
+        final_internal = math.ceil(
+            float(avg_mid)
+            + assignment_component["converted_marks"]
+            + quiz_component["converted_marks"]
+            + attendance_value
+        )
+
+    return {
+        "Roll Number": student.rollnumber,
+        "MID-I Marks (20)": mid1,
+        "MID-II Marks (20)": mid2,
+        "Average of MIDs": avg_mid,
+        "Assignment Marks (10)": assignment_component["converted_marks"],
+        "Quiz Marks (5)": quiz_component["converted_marks"],
+        "Attendance Marks (5)": attendance,
+        "Final Internal Marks (40)": final_internal,
+        "assignment_details": assignment_component,
+        "quiz_details": quiz_component,
+    }
+
+
+@app.route("/admin_consolidated_marks", methods=["GET", "POST"])
+def admin_consolidated_marks():
     if "loggedin" not in session:
         return redirect(url_for("login"))
 
@@ -10011,101 +10236,81 @@ def admin_consolidated_marks():
 
     current_admin = user
 
-    # --- Fetch students based on admin level ---
+    if request.method == "POST":
+        defaults = get_default_dom_consolidation_settings(current_admin)
+
+        def clamp_int(name, fallback, minimum=0, maximum=100):
+            raw_value = request.form.get(name, fallback)
+            try:
+                value = int(raw_value)
+            except (TypeError, ValueError):
+                value = fallback
+            return max(minimum, min(maximum, value))
+
+        def clamp_float(name, fallback, minimum=0.0, maximum=DOM_CONSOLIDATION_TOTAL):
+            raw_value = request.form.get(name, fallback)
+            try:
+                value = float(raw_value)
+            except (TypeError, ValueError):
+                value = fallback
+            return max(minimum, min(maximum, value))
+
+        quiz_target_marks = clamp_float(
+            "quiz_target_marks", defaults["quiz_target_marks"])
+        assignment_target_marks = clamp_float(
+            "assignment_target_marks", defaults["assignment_target_marks"])
+
+        if round(quiz_target_marks + assignment_target_marks, 2) != DOM_CONSOLIDATION_TOTAL:
+            assignment_target_marks = round(
+                max(0.0, DOM_CONSOLIDATION_TOTAL - quiz_target_marks), 2)
+            flash(
+                f"Assignment conversion marks were adjusted to {assignment_target_marks} so quiz + assignment stays {DOM_CONSOLIDATION_TOTAL}.",
+                "info"
+            )
+
+        settings = {
+            "quiz_best_count": clamp_int("quiz_best_count", defaults["quiz_best_count"]),
+            "quiz_target_marks": quiz_target_marks,
+            "assignment_best_count": clamp_int("assignment_best_count", defaults["assignment_best_count"], maximum=11),
+            "assignment_target_marks": assignment_target_marks,
+        }
+        save_dom_consolidation_settings(current_admin, settings)
+        flash("Consolidation settings updated successfully.", "success")
+        return redirect(url_for("admin_consolidated_marks"))
+
     if current_admin.admin_level == 'super_admin':
         students = User.query.filter(User.role == 'student').all()
     else:
         students = get_students_for_admin(current_admin)
     students.sort(key=lambda s: roll_sort_key(s.rollnumber))
 
-    # --- Load uploaded CSV (if exists) ---
-    uploaded_data = []
-    try:
-        admin_id = current_admin.id
-        upload_path = os.path.join(
-            os.getcwd(), "tmp_uploads", f"internal_marks_{admin_id}.csv")
-        if os.path.exists(upload_path):
-            df = pd.read_csv(upload_path)
-            uploaded_data = df.to_dict(orient="records")
-    except Exception as e:
-        print(f"⚠️ Unable to read uploaded internal marks file: {e}")
+    settings = get_dom_consolidation_settings(current_admin)
+    quiz_names = get_dom_admin_quiz_names(current_admin)
+    _, uploaded_lookup = load_uploaded_internal_marks(current_admin.id)
 
-    # --- Compute all marks ---
     data = []
     for s in students:
-        roll = s.rollnumber
+        data.append(build_dom_consolidated_row(
+            s,
+            current_admin=current_admin,
+            uploaded_lookup=uploaded_lookup,
+            settings=settings,
+            quiz_names=quiz_names
+        ))
 
-        # Assignment marks (out of 10)
-        assignment_marks = round((s.marks or 0) / 10, 2)
-
-        # Quiz marks (out of 5)
-        quiz_marks = 0
-        quiz_attempts = QuizAttempt.query.filter_by(user_id=s.id).all()
-        if quiz_attempts:
-            best_quiz_score = max(a.score for a in quiz_attempts)
-            total_quiz_points = quiz_attempts[0].total_points or 1
-            quiz_marks = round((best_quiz_score / total_quiz_points) * 5, 2)
-
-        # Default MID & Attendance
-        mid1 = mid2 = attendance = "N/A"
-
-        # If uploaded, read from CSV
-        for row in uploaded_data:
-            if str(row.get("Roll Number")).strip() == str(roll):
-                mid1 = row.get("MID-I Marks (20)", "N/A")
-                mid2 = row.get("MID-II Marks (20)", "N/A")
-                attendance = row.get("Attendance Marks (5)", "N/A")
-
-        # Calculate Average of MIDs
-        avg_mid = "N/A"
-        try:
-            if str(mid1).replace('.', '', 1).isdigit() and str(mid2).replace('.', '', 1).isdigit():
-                m1, m2 = float(mid1), float(mid2)
-                best, second = sorted([m1, m2], reverse=True)
-                avg_mid = round((2/3)*best + (1/3)*second, 2)
-        except Exception:
-            avg_mid = "N/A"
-
-        # Calculate Final Internal Marks (40)
-        final_internal = "N/A"
-        try:
-            if isinstance(avg_mid, (int, float)):
-                # Handle attendance conversion safely
-                att_val = 0
-                try:
-                    att_val = float(attendance) if attendance != "N/A" else 0
-                except (ValueError, TypeError):
-                    att_val = 0
-
-                final_internal = math.ceil(
-                    (avg_mid or 0) + assignment_marks + quiz_marks + att_val)
-        except Exception:
-            final_internal = "N/A"
-
-        data.append({
-            "Roll Number": roll,
-            "MID-I Marks (20)": mid1,
-            "MID-II Marks (20)": mid2,
-            "Average of MIDs": avg_mid,
-            "Assignment Marks (10)": assignment_marks,
-            "Quiz Marks (5)": quiz_marks,
-            "Attendance Marks (5)": attendance,
-            "Final Internal Marks (40)": final_internal
-        })
-
-    return render_template("admin_consolidated_marks.html",
-                           data=data,
-                           current_admin=current_admin)
-
+    return render_template(
+        "admin_consolidated_marks.html",
+        data=data,
+        current_admin=current_admin,
+        settings=settings,
+        quiz_names=quiz_names,
+        dom_consolidation_total=DOM_CONSOLIDATION_TOTAL
+    )
 
 @app.route("/download_consolidated_marks")
 def download_consolidated_marks():
-    import pandas as pd
     from io import BytesIO
-    from flask import send_file
-    import math, os
 
-    # --- Session check ---
     if "loggedin" not in session:
         return redirect(url_for("login"))
 
@@ -10114,7 +10319,6 @@ def download_consolidated_marks():
         flash("Unauthorized access!", "danger")
         return redirect(url_for("login"))
 
-    # --- Get students list ---
     if current_admin.admin_level == 'super_admin':
         students = (
             User.query.filter(User.role == 'student')
@@ -10123,90 +10327,39 @@ def download_consolidated_marks():
         )
     else:
         students = get_students_for_admin(current_admin)
-        students.sort(key=lambda s: s.rollnumber or "")
+        students.sort(key=lambda s: roll_sort_key(s.rollnumber))
 
-    # --- Read uploaded internal marks file ---
-    uploaded_data = []
-    try:
-        admin_id = current_admin.id
-        upload_path = os.path.join(os.getcwd(), "tmp_uploads", f"internal_marks_{admin_id}.csv")
-        if os.path.exists(upload_path):
-            df = pd.read_csv(upload_path)
-            uploaded_data = df.to_dict(orient="records")
-        else:
-            print(f"⚠️ No uploaded file found at: {upload_path}")
-    except Exception as e:
-        print(f"⚠️ Unable to read uploaded internal marks file: {e}")
+    settings = get_dom_consolidation_settings(current_admin)
+    quiz_names = get_dom_admin_quiz_names(current_admin)
+    _, uploaded_lookup = load_uploaded_internal_marks(current_admin.id)
 
-    # --- Prepare consolidated marks data ---
     rows = []
+    export_columns = [
+        "Roll Number",
+        "MID-I Marks (20)",
+        "MID-II Marks (20)",
+        "Average of MIDs",
+        "Assignment Marks (10)",
+        "Quiz Marks (5)",
+        "Attendance Marks (5)",
+        "Final Internal Marks (40)",
+    ]
     for s in students:
-        roll = s.rollnumber
-        assign_marks = round(float(s.marks or 0) / 10, 2)
+        row = build_dom_consolidated_row(
+            s,
+            current_admin=current_admin,
+            uploaded_lookup=uploaded_lookup,
+            settings=settings,
+            quiz_names=quiz_names
+        )
+        rows.append({column: row[column] for column in export_columns})
 
-        # --- Quiz Marks (best attempt out of 5) ---
-        quiz_marks = 0
-        try:
-            quiz_attempts = QuizAttempt.query.filter_by(user_id=s.id).all()
-            if quiz_attempts:
-                best_quiz_score = max(a.score or 0 for a in quiz_attempts)
-                total_quiz_points = quiz_attempts[0].total_points or 1
-                quiz_marks = round((best_quiz_score / total_quiz_points) * 5, 2)
-        except Exception as e:
-            print(f"⚠️ Quiz export issue for {s.rollnumber}: {e}")
-
-        # --- MID Marks and Attendance from uploaded CSV ---
-        mid1 = mid2 = attendance = "N/A"
-        for row in uploaded_data:
-            if str(row.get("Roll Number")).strip() == str(roll):
-                mid1 = row.get("MID-I Marks (20)", "N/A")
-                mid2 = row.get("MID-II Marks (20)", "N/A")
-                attendance = row.get("Attendance Marks (5)", "N/A")
-
-        # --- Calculate Average of MIDs ---
-        avg_mid = "N/A"
-        try:
-            if str(mid1).replace(".", "", 1).isdigit() and str(mid2).replace(".", "", 1).isdigit():
-                m1, m2 = float(mid1), float(mid2)
-                best, second = sorted([m1, m2], reverse=True)
-                avg_mid = round((2/3) * best + (1/3) * second, 2)
-        except Exception:
-            avg_mid = "N/A"
-
-        # --- Calculate Final Internal Marks (40) ---
-        final_internal = "N/A"
-        try:
-            if isinstance(avg_mid, (int, float, float)) or str(avg_mid).replace('.', '', 1).isdigit():
-                att_val = 0
-                try:
-                    att_val = float(attendance) if str(attendance).replace('.', '', 1).isdigit() else 0
-                except Exception:
-                    att_val = 0
-
-                total_marks = (float(avg_mid) if avg_mid != "N/A" else 0) + assign_marks + quiz_marks + att_val
-                final_internal = math.ceil(total_marks)
-        except Exception:
-            final_internal = "N/A"
-
-        # --- Append to rows ---
-        rows.append({
-            "Roll Number": roll,
-            "MID-I Marks (20)": mid1,
-            "MID-II Marks (20)": mid2,
-            "Average of MIDs": avg_mid,
-            "Assignment Marks (10)": assign_marks,
-            "Quiz Marks (5)": quiz_marks,
-            "Attendance Marks (5)": attendance,
-            "Final Internal Marks (40)": final_internal
-        })
-
-    # --- Convert to CSV and send ---
     df = pd.DataFrame(rows)
     csv_data = df.to_csv(index=False)
     output = BytesIO(csv_data.encode("utf-8"))
     output.seek(0)
 
-    print(f"✅ Final Consolidated CSV ready: {len(rows)} records")
+    print(f"Final Consolidated CSV ready: {len(rows)} records")
 
     return send_file(
         output,
@@ -10214,7 +10367,6 @@ def download_consolidated_marks():
         download_name="final_internal_marks.csv",
         mimetype="text/csv"
     )
-
 
 @app.route("/export_users_csv")
 def export_users_csv():
@@ -10429,7 +10581,7 @@ def reset_user_quiz(user_id):
 
     try:
         # Delete all quiz attempts for this user
-        quiz_attempts = QuizAttempt.query.filter_by(user_id=user_id).all()
+        quiz_attempts = QuizAttempt.query.filter_by(user_id=user_id, quiz_name=DEFAULT_QUIZ_NAME).all()
         for attempt in quiz_attempts:
             # Delete related quiz responses first
             QuizResponse.query.filter_by(attempt_id=attempt.id).delete()
@@ -10438,14 +10590,14 @@ def reset_user_quiz(user_id):
 
         db.session.commit()
         flash(
-            f"✅ Quiz attempts for user {user.rollnumber} have been reset successfully!", "success")
+            f"✅ Quiz attempts for user {user.rollnumber} in {DEFAULT_QUIZ_NAME} have been reset successfully!", "success")
 
     except Exception as e:
         db.session.rollback()
         flash(
             f"❌ Error resetting quiz for user {user.rollnumber}: {str(e)}", "error")
 
-    return redirect(url_for("admin_dashboard"))
+    return redirect(url_for("dom_subject_admin_dashboard"))
 
 
 @app.route("/reset_my_admin_progress", methods=["POST"])
@@ -10545,7 +10697,7 @@ def reset_all_users():
         user.p11_score = 0
 
         # Delete all quiz attempts and responses for this user
-        quiz_attempts = QuizAttempt.query.filter_by(user_id=user.id).all()
+        quiz_attempts = QuizAttempt.query.filter_by(user_id=user.id, quiz_name=DEFAULT_QUIZ_NAME).all()
         for attempt in quiz_attempts:
             QuizResponse.query.filter_by(attempt_id=attempt.id).delete()
             db.session.delete(attempt)
@@ -12548,101 +12700,41 @@ def login():
 # ---------------- Welcome ----------------
 @app.route("/student_consolidated_marks")
 def student_consolidated_marks():
-    import os
-    import pandas as pd
-    import math
-
     if "loggedin" not in session:
         return redirect(url_for("login"))
 
-    # current student
     student = User.query.filter_by(rollnumber=session["rollnumber"]).first()
     if not student or student.role != "student":
         flash("Unauthorized access!", "danger")
         return redirect(url_for("login"))
 
-    # --- Initialize all variables safely ---
-    mid1 = "N/A"
-    mid2 = "N/A"
-    attendance = "N/A"
-    kdm_quiz_marks = 0
+    responsible_admin = find_admin_for_student(student.rollnumber)
+    uploaded_lookup = {}
+    settings = get_default_dom_consolidation_settings(responsible_admin)
+    quiz_names = [DEFAULT_QUIZ_NAME]
 
-    # --- Load uploaded CSVs and find this student's record ---
-    uploaded_data = []
-    try:
-        upload_dir = os.path.join(os.getcwd(), "tmp_uploads")
-        if os.path.exists(upload_dir):
-            for filename in os.listdir(upload_dir):
-                if filename.startswith("internal_marks_") and filename.endswith(".csv"):
-                    filepath = os.path.join(upload_dir, filename)
-                    try:
-                        df = pd.read_csv(filepath)
-                        for _, row in df.iterrows():
-                            if str(row.get("Roll Number", "")).strip() == str(student.rollnumber):
-                                mid1 = row.get("MID-I Marks (20)", "N/A")
-                                mid2 = row.get("MID-II Marks (20)", "N/A")
-                                attendance = row.get("Attendance Marks (5)", "N/A")
-                                uploaded_data = df.to_dict(orient="records")
-                                print(f"✅ Found student {student.rollnumber} in {filename}")
-                                break
-                        if uploaded_data:
-                            break
-                    except Exception as file_error:
-                        print(f"⚠️ Error reading {filename}: {file_error}")
-                        continue
-    except Exception as e:
-        print(f"⚠️ Could not read internal marks files: {e}")
+    if responsible_admin:
+        settings = get_dom_consolidation_settings(responsible_admin)
+        quiz_names = get_dom_admin_quiz_names(responsible_admin)
+        _, uploaded_lookup = load_uploaded_internal_marks(responsible_admin.id)
 
-    # --- Assignment & Quiz Marks ---
-    assignment_marks = round((student.marks or 0) / 10, 2)
+    row = build_dom_consolidated_row(
+        student,
+        current_admin=responsible_admin or student,
+        uploaded_lookup=uploaded_lookup,
+        settings=settings,
+        quiz_names=quiz_names
+    )
 
-    quiz_marks = 0
-    quiz_attempts = QuizAttempt.query.filter_by(user_id=student.id).all()
-    if quiz_attempts:
-        best_quiz_score = max(a.score for a in quiz_attempts)
-        total_quiz_points = quiz_attempts[0].total_points or 1
-        quiz_marks = round((best_quiz_score / total_quiz_points) * 5, 2)
+    data = [row]
 
-    # --- Average of MIDs ---
-    avg_mid = "N/A"
-    try:
-        if str(mid1).replace('.', '', 1).isdigit() and str(mid2).replace('.', '', 1).isdigit():
-            m1, m2 = float(mid1), float(mid2)
-            best, second = sorted([m1, m2], reverse=True)
-            avg_mid = round((2 / 3) * best + (1 / 3) * second, 2)
-    except Exception as e:
-        print(f"⚠️ Error calculating average of MIDs: {e}")
-
-    # --- Final Internal Marks ---
-    final_internal = "N/A"
-    try:
-        if isinstance(avg_mid, (int, float)):
-            att_val = 0
-            try:
-                att_val = float(attendance) if attendance != "N/A" else 0
-            except (ValueError, TypeError):
-                att_val = 0
-
-            final_internal = math.ceil((avg_mid or 0) + assignment_marks + quiz_marks + att_val)
-    except Exception as e:
-        print(f"⚠️ Error calculating final internal marks: {e}")
-
-    # --- Prepare for template ---
-    data = [{
-        "Roll Number": student.rollnumber,
-        "MID-I Marks (20)": mid1,
-        "MID-II Marks (20)": mid2,
-        "Average of MIDs": avg_mid,
-        "Assignment Marks (10)": assignment_marks,
-        "Quiz Marks (5)": quiz_marks,
-        "KDM Lab Quiz Marks (10)": kdm_quiz_marks,
-        "Attendance Marks (5)": attendance,
-        "Final Internal Marks (40)": final_internal
-    }]
-
-    return render_template("student_consolidated_marks.html",
-                           student=student,
-                           data=data)
+    return render_template(
+        "student_consolidated_marks.html",
+        student=student,
+        data=data,
+        settings=settings,
+        dom_consolidation_total=DOM_CONSOLIDATION_TOTAL
+    )
 
 @app.route("/welcome")
 def welcome():
