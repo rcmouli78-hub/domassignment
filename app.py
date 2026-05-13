@@ -4804,6 +4804,39 @@ class DOMSubjectStudentQuizRelease(db.Model):
         return f'<DOMSubjectStudentQuizRelease Admin:{self.admin_id} Student:{self.student_id} Released:{self.is_released}>'
 
 
+class DOMConceptualQuizSession(db.Model):
+    __tablename__ = 'dom_conceptual_quiz_sessions'
+    __table_args__ = {'extend_existing': True}
+
+    id = db.Column(db.Integer, primary_key=True)
+    admin_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    question_id = db.Column(db.Integer, db.ForeignKey('quiz_questions.id'), nullable=False)
+    is_active = db.Column(db.Boolean, default=True)
+    posted_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    closed_at = db.Column(db.DateTime, nullable=True)
+
+    admin = db.relationship('User', foreign_keys=[admin_id], backref='dom_conceptual_sessions')
+    question = db.relationship('QuizQuestion', backref='dom_conceptual_sessions')
+
+
+class DOMConceptualQuizResponse(db.Model):
+    __tablename__ = 'dom_conceptual_quiz_responses'
+    __table_args__ = (
+        db.UniqueConstraint('session_id', 'student_id', name='uq_dom_conceptual_session_student'),
+        {'extend_existing': True}
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    session_id = db.Column(db.Integer, db.ForeignKey('dom_conceptual_quiz_sessions.id'), nullable=False)
+    student_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    selected_answer = db.Column(db.JSON, nullable=True)
+    is_correct = db.Column(db.Boolean, nullable=False, default=False)
+    answered_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+
+    session = db.relationship('DOMConceptualQuizSession', backref='responses')
+    student = db.relationship('User', foreign_keys=[student_id], backref='dom_conceptual_responses')
+
+
 # --- Quiz Utility Functions ---
 
 def get_quiz_visibility_for_user(user_roll_number):
@@ -5075,6 +5108,10 @@ def ensure_quiz_attempt_schema():
         db.session.commit()
 
 
+def initialize_dom_conceptual_testing_system():
+    db.create_all()
+
+
 def initialize_quiz_bank_system():
     db.create_all()
     ensure_quiz_bank_schema()
@@ -5087,6 +5124,109 @@ def initialize_quiz_bank_system():
 def get_quiz_bank_by_name(quiz_name):
     initialize_quiz_bank_system()
     return QuizBank.query.filter_by(quiz_name=quiz_name or DEFAULT_QUIZ_NAME).first()
+
+
+def get_choice_text(choice):
+    if isinstance(choice, dict):
+        return choice.get('text') or choice.get('value') or str(choice)
+    return str(choice)
+
+
+def get_conceptual_question_payload(question):
+    if not question:
+        return None
+    return {
+        "id": question.id,
+        "co_number": question.co_number or "",
+        "question_text": question.question_text,
+        "answer_type": question.answer_type,
+        "choices": [
+            {"index": index, "text": get_choice_text(choice)}
+            for index, choice in enumerate(question.choices or [])
+        ],
+    }
+
+
+def get_conceptual_students_for_admin(admin_user):
+    if admin_user.admin_level == 'super_admin':
+        return User.query.filter_by(role='student').all()
+    return get_students_for_admin(admin_user)
+
+
+def get_dom_conceptual_active_session_for_admin(admin_user):
+    initialize_dom_conceptual_testing_system()
+    return (
+        DOMConceptualQuizSession.query
+        .filter_by(admin_id=admin_user.id, is_active=True)
+        .order_by(DOMConceptualQuizSession.posted_at.desc(), DOMConceptualQuizSession.id.desc())
+        .first()
+    )
+
+
+def get_dom_conceptual_active_session_for_student(student):
+    initialize_dom_conceptual_testing_system()
+    admin_ids = []
+    responsible_admin = find_admin_for_student(student.rollnumber)
+    if responsible_admin:
+        admin_ids.append(responsible_admin.id)
+
+    admin_ids.extend([
+        row[0] for row in db.session.query(User.id)
+        .filter(User.role.in_(['admin', 'super_admin']), User.admin_level == 'super_admin')
+        .all()
+    ])
+    admin_ids = list(dict.fromkeys(admin_ids))
+    if not admin_ids:
+        return None
+
+    return (
+        DOMConceptualQuizSession.query
+        .filter(
+            DOMConceptualQuizSession.admin_id.in_(admin_ids),
+            DOMConceptualQuizSession.is_active.is_(True)
+        )
+        .order_by(DOMConceptualQuizSession.posted_at.desc(), DOMConceptualQuizSession.id.desc())
+        .first()
+    )
+
+
+def get_dom_conceptual_response(session_id, student_id):
+    return DOMConceptualQuizResponse.query.filter_by(
+        session_id=session_id,
+        student_id=student_id
+    ).first()
+
+
+def get_dom_conceptual_stats(conceptual_session, admin_user):
+    students = get_conceptual_students_for_admin(admin_user)
+    student_ids = [student.id for student in students]
+    responses = []
+    if conceptual_session and student_ids:
+        responses = (
+            DOMConceptualQuizResponse.query
+            .filter(
+                DOMConceptualQuizResponse.session_id == conceptual_session.id,
+                DOMConceptualQuizResponse.student_id.in_(student_ids)
+            )
+            .all()
+        )
+
+    correct_count = sum(1 for response in responses if response.is_correct)
+    incorrect_responses = [response for response in responses if not response.is_correct]
+    wrong_rollnumbers = sorted(
+        response.student.rollnumber
+        for response in incorrect_responses
+        if response.student
+    )
+
+    return {
+        "total_students": len(students),
+        "answered_count": len(responses),
+        "correct_count": correct_count,
+        "incorrect_count": len(incorrect_responses),
+        "pending_count": max(0, len(students) - len(responses)),
+        "wrong_rollnumbers": wrong_rollnumbers,
+    }
 
 
 def get_admin_quiz_banks(user):
@@ -9766,10 +9906,24 @@ def dom_subject_admin_dashboard():
         quiz_released = False
         print(f"⚠️ Error getting DOM quiz visibility: {e}")
 
+    initialize_dom_conceptual_testing_system()
+    conceptual_questions_by_co = {}
+    for co in QUIZ_CO_OPTIONS:
+        conceptual_questions_by_co[co] = [
+            get_conceptual_question_payload(question)
+            for question in QuizQuestion.query.filter_by(co_number=co).order_by(QuizQuestion.id.asc()).all()
+        ]
+    active_conceptual_session = get_dom_conceptual_active_session_for_admin(current_admin)
+    conceptual_stats = get_dom_conceptual_stats(active_conceptual_session, current_admin)
+
     return render_template("dom_subject_admin_dashboard.html",
                            current_admin=current_admin,
                            allow_admin_add_question=allow_admin_add_question,
                            quiz_released=quiz_released,
+                           quiz_co_options=QUIZ_CO_OPTIONS,
+                           conceptual_questions_by_co=conceptual_questions_by_co,
+                           active_conceptual_session=active_conceptual_session,
+                           conceptual_stats=conceptual_stats,
                            users=users,
                            current_sort=sort_by,
                            current_order=sort_order,
@@ -9777,6 +9931,136 @@ def dom_subject_admin_dashboard():
                            total_students=total_students,
                            total_quiz_questions=total_quiz_questions,
                            total_exam_questions=total_exam_questions)
+
+
+@app.route("/dom_conceptual_post", methods=["POST"])
+def dom_conceptual_post():
+    if "loggedin" not in session:
+        return redirect(url_for("login"))
+
+    admin_user = User.query.filter_by(rollnumber=session["rollnumber"]).first()
+    if not admin_user or admin_user.role not in ["admin", "super_admin"]:
+        flash("Admin access required.", "danger")
+        return redirect(url_for("login"))
+
+    initialize_dom_conceptual_testing_system()
+    co_number = request.form.get("co_number")
+    question_id = request.form.get("question_id", type=int)
+    question = QuizQuestion.query.get(question_id) if question_id else None
+
+    if co_number not in QUIZ_CO_OPTIONS or not question or question.co_number != co_number:
+        flash("Please select one valid question under the selected CO.", "danger")
+        return redirect(url_for("dom_subject_admin_dashboard"))
+
+    DOMConceptualQuizSession.query.filter_by(
+        admin_id=admin_user.id,
+        is_active=True
+    ).update({"is_active": False, "closed_at": datetime.now()})
+
+    conceptual_session = DOMConceptualQuizSession(
+        admin_id=admin_user.id,
+        question_id=question.id,
+        is_active=True
+    )
+    db.session.add(conceptual_session)
+    db.session.commit()
+
+    flash("Conceptual testing question posted to students.", "success")
+    return redirect(url_for("dom_subject_admin_dashboard"))
+
+
+@app.route("/dom_conceptual_close", methods=["POST"])
+def dom_conceptual_close():
+    if "loggedin" not in session:
+        return redirect(url_for("login"))
+
+    admin_user = User.query.filter_by(rollnumber=session["rollnumber"]).first()
+    if not admin_user or admin_user.role not in ["admin", "super_admin"]:
+        flash("Admin access required.", "danger")
+        return redirect(url_for("login"))
+
+    active_session = get_dom_conceptual_active_session_for_admin(admin_user)
+    if active_session:
+        active_session.is_active = False
+        active_session.closed_at = datetime.now()
+        db.session.commit()
+        flash("Conceptual testing question closed.", "success")
+    else:
+        flash("No active conceptual testing question to close.", "warning")
+
+    return redirect(url_for("dom_subject_admin_dashboard"))
+
+
+@app.route("/dom_conceptual_stats")
+def dom_conceptual_stats():
+    if "loggedin" not in session:
+        return jsonify({"error": "Not logged in"}), 401
+
+    admin_user = User.query.filter_by(rollnumber=session["rollnumber"]).first()
+    if not admin_user or admin_user.role not in ["admin", "super_admin"]:
+        return jsonify({"error": "Admin access required"}), 403
+
+    active_session = get_dom_conceptual_active_session_for_admin(admin_user)
+    stats = get_dom_conceptual_stats(active_session, admin_user)
+    return jsonify({
+        "active": bool(active_session),
+        "session_id": active_session.id if active_session else None,
+        **stats
+    })
+
+
+@app.route("/dom_conceptual_answer", methods=["POST"])
+def dom_conceptual_answer():
+    if "loggedin" not in session or "rollnumber" not in session:
+        return redirect(url_for("login"))
+
+    student = User.query.filter_by(rollnumber=session["rollnumber"]).first()
+    if not student or student.role != "student":
+        flash("Only students can answer conceptual testing questions.", "danger")
+        return redirect(url_for("login"))
+
+    active_session = get_dom_conceptual_active_session_for_student(student)
+    session_id = request.form.get("session_id", type=int)
+    if not active_session or active_session.id != session_id:
+        flash("This conceptual testing question is no longer active.", "warning")
+        return redirect(url_for("dom_subject_student_dashboard"))
+
+    if get_dom_conceptual_response(active_session.id, student.id):
+        flash("You already answered this conceptual testing question.", "info")
+        return redirect(url_for("dom_subject_student_dashboard"))
+
+    question = active_session.question
+    selected_indices = []
+    for value in request.form.getlist("selected_answer"):
+        try:
+            selected_indices.append(int(value))
+        except (TypeError, ValueError):
+            continue
+
+    if not selected_indices:
+        flash("Please select an answer before submitting.", "warning")
+        return redirect(url_for("dom_subject_student_dashboard"))
+
+    choice_ids = ['A', 'B', 'C', 'D']
+    selected_letter_ids = [
+        choice_ids[index]
+        for index in selected_indices
+        if 0 <= index < len(choice_ids)
+    ]
+    question_score = calculate_question_score(question, selected_letter_ids)
+    is_correct = question_score == question.points
+
+    response = DOMConceptualQuizResponse(
+        session_id=active_session.id,
+        student_id=student.id,
+        selected_answer=selected_indices,
+        is_correct=is_correct
+    )
+    db.session.add(response)
+    db.session.commit()
+
+    flash("Your conceptual testing answer was submitted.", "success")
+    return redirect(url_for("dom_subject_student_dashboard"))
 
 
 @app.route("/dom_subject_individual_quiz_releases")
@@ -12556,6 +12840,12 @@ def dom_subject_student_dashboard():
         1 for i in range(1, 12) if getattr(user, f"p{i}_attempts", 0) > 0
     )
 
+    active_conceptual_session = get_dom_conceptual_active_session_for_student(user)
+    conceptual_response = (
+        get_dom_conceptual_response(active_conceptual_session.id, user.id)
+        if active_conceptual_session else None
+    )
+
     return render_template(
         "dom_subject_student_dashboard.html",
         user=user,
@@ -12567,6 +12857,8 @@ def dom_subject_student_dashboard():
         quiz_best_score=quiz_best_score,
         quiz_max_score=quiz_max_score,
         quiz_summaries=quiz_summaries,
+        active_conceptual_session=active_conceptual_session,
+        conceptual_response=conceptual_response,
         allow_student_mid_exam_questions=allow_student_mid_exam_questions,
     )
 

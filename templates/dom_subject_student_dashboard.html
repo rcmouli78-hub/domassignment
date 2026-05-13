@@ -129,6 +129,14 @@
         color: #636e72;
         font-size: 0.92rem;
       }
+
+      .concept-card {
+        background: rgba(255, 255, 255, 0.94);
+        border: 1px solid rgba(253, 203, 110, 0.45);
+        border-radius: 18px;
+        box-shadow: 0 10px 24px rgba(253, 203, 110, 0.18);
+        padding: 1.5rem;
+      }
     </style>
   </head>
   <body>
@@ -308,6 +316,57 @@
           style="background: linear-gradient(135deg, #ffeaa7, #fdcb6e)"
         >
           <i class="fas fa-lock me-2"></i>Quiz not yet released
+        </div>
+        {% endif %}
+
+        <!-- Conceptual Testing Quiz -->
+        {% if active_conceptual_session %}
+        <h4 class="section-title">
+          <i class="fas fa-bolt"></i>Conceptual Testing Quiz
+        </h4>
+        <div class="concept-card mb-4">
+          <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+            <div>
+              <span class="badge bg-warning text-dark me-2">{{ active_conceptual_session.question.co_number }}</span>
+              <strong>Understanding Check</strong>
+            </div>
+            {% if conceptual_response %}
+            <span class="badge bg-secondary">Answered</span>
+            {% else %}
+            <span class="badge bg-success">Live</span>
+            {% endif %}
+          </div>
+
+          <p class="mb-3">{{ active_conceptual_session.question.question_text }}</p>
+
+          {% if conceptual_response %}
+          <div class="alert alert-info mb-0">
+            <i class="fas fa-check-circle me-2"></i>Your answer was submitted.
+          </div>
+          {% else %}
+          <form method="POST" action="{{ url_for('dom_conceptual_answer') }}">
+            <input type="hidden" name="session_id" value="{{ active_conceptual_session.id }}">
+            {% for choice in active_conceptual_session.question.choices %}
+              {% set choice_text = choice.text if choice is mapping and choice.text is defined else choice %}
+              <div class="form-check mb-2">
+                <input
+                  class="form-check-input"
+                  type="{{ 'checkbox' if active_conceptual_session.question.answer_type == 'multiple' else 'radio' }}"
+                  name="selected_answer"
+                  id="conceptChoice{{ loop.index0 }}"
+                  value="{{ loop.index0 }}"
+                  {% if active_conceptual_session.question.answer_type != 'multiple' %}required{% endif %}
+                >
+                <label class="form-check-label" for="conceptChoice{{ loop.index0 }}">
+                  {{ choice_text }}
+                </label>
+              </div>
+            {% endfor %}
+            <button type="submit" class="btn btn-warning mt-2">
+              <i class="fas fa-paper-plane me-2"></i>Submit Answer
+            </button>
+          </form>
+          {% endif %}
         </div>
         {% endif %}
 
