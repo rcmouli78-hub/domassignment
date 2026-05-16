@@ -16548,6 +16548,8 @@ def quiz_results(attempt_id):
     if "rollnumber" not in session:
         return redirect(url_for("login"))
 
+    initialize_quiz_bank_system()
+
     user = User.query.filter_by(rollnumber=session["rollnumber"]).first()
     if not user:
         return redirect(url_for("login"))
