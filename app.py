@@ -4618,6 +4618,7 @@ def check_problem_access(problem_number):
 
 QUIZ_CO_OPTIONS = ['CO1', 'CO2', 'CO3', 'CO4', 'CO5']
 DEFAULT_QUIZ_NAME = 'default_quiz'
+DOM_CONCEPTUAL_SYSTEM_INITIALIZED = False
 
 
 class QuizBank(db.Model):
@@ -5109,7 +5110,11 @@ def ensure_quiz_attempt_schema():
 
 
 def initialize_dom_conceptual_testing_system():
+    global DOM_CONCEPTUAL_SYSTEM_INITIALIZED
+    if DOM_CONCEPTUAL_SYSTEM_INITIALIZED:
+        return
     db.create_all()
+    DOM_CONCEPTUAL_SYSTEM_INITIALIZED = True
 
 
 def initialize_quiz_bank_system():
