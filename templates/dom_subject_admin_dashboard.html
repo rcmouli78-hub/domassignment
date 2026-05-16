@@ -455,84 +455,21 @@
         </div>
       </div>
 
-      <!-- Conceptual Testing Quiz Section -->
       <div class="nav-section">
         <h4 class="section-title">
           <i class="fas fa-bolt"></i>Conceptual Testing Quiz
         </h4>
-        <p class="text-muted mb-3">Post one existing quiz question at a time. This is only for checking understanding and is not counted in marks.</p>
-
+        <p class="text-muted mb-3">
+          Open the separate conceptual quiz page to post one-question checks and view correct/wrong statistics.
+        </p>
         <div class="row g-3">
-          <div class="col-lg-5">
-            <div class="concept-card h-100">
-              <form method="POST" action="{{ url_for('dom_conceptual_post') }}">
-                <div class="mb-3">
-                  <label for="conceptCoSelect" class="form-label">Select CO</label>
-                  <select id="conceptCoSelect" name="co_number" class="form-select" required>
-                    <option value="">Choose CO</option>
-                    {% for co in quiz_co_options %}
-                    <option value="{{ co }}">{{ co }}</option>
-                    {% endfor %}
-                  </select>
-                </div>
-                <div class="mb-3">
-                  <label for="conceptQuestionSelect" class="form-label">Select one question</label>
-                  <select id="conceptQuestionSelect" name="question_id" class="form-select" required disabled>
-                    <option value="">Choose a CO first</option>
-                  </select>
-                </div>
-                <button type="submit" class="btn btn-primary w-100">
-                  <i class="fas fa-paper-plane me-2"></i>Post to Students
-                </button>
-              </form>
-
-              {% if active_conceptual_session %}
-              <form method="POST" action="{{ url_for('dom_conceptual_close') }}" class="mt-2">
-                <button type="submit" class="btn btn-outline-danger w-100">
-                  <i class="fas fa-stop-circle me-2"></i>Close Current Question
-                </button>
-              </form>
-              {% endif %}
-            </div>
-          </div>
-
-          <div class="col-lg-7">
-            <div class="concept-card h-100">
-              {% if active_conceptual_session %}
-              <div class="mb-3">
-                <span class="badge bg-success me-2">Live</span>
-                <strong>{{ active_conceptual_session.question.co_number }}</strong>
-                <div class="mt-2">{{ active_conceptual_session.question.question_text }}</div>
-              </div>
-              {% else %}
-              <div class="alert alert-warning mb-3">
-                <i class="fas fa-circle-info me-2"></i>No conceptual testing question is active right now.
-              </div>
-              {% endif %}
-
-              <div class="mb-2 d-flex justify-content-between">
-                <span>Correct: <strong id="conceptCorrectCount">{{ conceptual_stats.correct_count }}</strong></span>
-                <span>Incorrect: <strong id="conceptIncorrectCount">{{ conceptual_stats.incorrect_count }}</strong></span>
-                <span>Answered: <strong id="conceptAnsweredCount">{{ conceptual_stats.answered_count }}</strong>/<span id="conceptTotalStudents">{{ conceptual_stats.total_students }}</span></span>
-              </div>
-              <div class="mb-3">
-                <div class="d-flex gap-2 align-items-center mb-2">
-                  <div id="conceptCorrectBar" class="concept-bar bg-success" style="width: 0%;">0</div>
-                </div>
-                <div class="d-flex gap-2 align-items-center">
-                  <div id="conceptIncorrectBar" class="concept-bar bg-danger" style="width: 0%;">0</div>
-                </div>
-              </div>
-
-              <h6 class="text-danger">Wrong Answer Roll Numbers</h6>
-              <div id="conceptWrongRolls" class="concept-wrong-list">
-                {% if conceptual_stats.wrong_rollnumbers %}
-                {{ conceptual_stats.wrong_rollnumbers|join(', ') }}
-                {% else %}
-                <span class="text-muted">No wrong answers yet.</span>
-                {% endif %}
-              </div>
-            </div>
+          <div class="col-lg-4 col-md-6">
+            <a
+              href="{{ url_for('dom_conceptual_dashboard') }}"
+              class="nav-btn w-100 dom-btn-primary"
+            >
+              <i class="fas fa-chart-column"></i>Open Conceptual Quiz Page
+            </a>
           </div>
         </div>
       </div>
@@ -1008,83 +945,6 @@
           }
         });
 
-        const questionsByCo = {{ conceptual_questions_by_co|tojson }};
-        const coSelect = document.getElementById("conceptCoSelect");
-        const questionSelect = document.getElementById("conceptQuestionSelect");
-        const correctBar = document.getElementById("conceptCorrectBar");
-        const incorrectBar = document.getElementById("conceptIncorrectBar");
-        const correctCount = document.getElementById("conceptCorrectCount");
-        const incorrectCount = document.getElementById("conceptIncorrectCount");
-        const answeredCount = document.getElementById("conceptAnsweredCount");
-        const totalStudents = document.getElementById("conceptTotalStudents");
-        const wrongRolls = document.getElementById("conceptWrongRolls");
-
-        function truncateQuestion(text) {
-          return text.length > 120 ? text.slice(0, 120) + "..." : text;
-        }
-
-        if (coSelect && questionSelect) {
-          coSelect.addEventListener("change", function () {
-            const questions = questionsByCo[this.value] || [];
-            questionSelect.innerHTML = "";
-            if (!questions.length) {
-              questionSelect.disabled = true;
-              questionSelect.insertAdjacentHTML("beforeend", '<option value="">No questions under this CO</option>');
-              return;
-            }
-            questionSelect.disabled = false;
-            questionSelect.insertAdjacentHTML("beforeend", '<option value="">Choose one question</option>');
-            questions.forEach(question => {
-              const option = document.createElement("option");
-              option.value = question.id;
-              option.textContent = `Q${question.id}: ${truncateQuestion(question.question_text)}`;
-              questionSelect.appendChild(option);
-            });
-          });
-        }
-
-        function updateConceptBars(data) {
-          const answered = Math.max(data.answered_count || 0, 1);
-          const correctWidth = Math.max(8, ((data.correct_count || 0) / answered) * 100);
-          const incorrectWidth = Math.max(8, ((data.incorrect_count || 0) / answered) * 100);
-
-          if (correctBar) {
-            correctBar.style.width = `${correctWidth}%`;
-            correctBar.textContent = data.correct_count || 0;
-          }
-          if (incorrectBar) {
-            incorrectBar.style.width = `${incorrectWidth}%`;
-            incorrectBar.textContent = data.incorrect_count || 0;
-          }
-          if (correctCount) correctCount.textContent = data.correct_count || 0;
-          if (incorrectCount) incorrectCount.textContent = data.incorrect_count || 0;
-          if (answeredCount) answeredCount.textContent = data.answered_count || 0;
-          if (totalStudents) totalStudents.textContent = data.total_students || 0;
-          if (wrongRolls) {
-            wrongRolls.innerHTML = data.wrong_rollnumbers && data.wrong_rollnumbers.length
-              ? data.wrong_rollnumbers.join(", ")
-              : '<span class="text-muted">No wrong answers yet.</span>';
-          }
-        }
-
-        updateConceptBars({
-          correct_count: {{ conceptual_stats.correct_count|tojson }},
-          incorrect_count: {{ conceptual_stats.incorrect_count|tojson }},
-          answered_count: {{ conceptual_stats.answered_count|tojson }},
-          total_students: {{ conceptual_stats.total_students|tojson }},
-          wrong_rollnumbers: {{ conceptual_stats.wrong_rollnumbers|tojson }}
-        });
-
-        if (correctBar && incorrectBar) {
-          setInterval(() => {
-            fetch("{{ url_for('dom_conceptual_stats') }}")
-              .then(response => response.ok ? response.json() : null)
-              .then(data => {
-                if (data) updateConceptBars(data);
-              })
-              .catch(() => {});
-          }, 3000);
-        }
       });
     </script>
 

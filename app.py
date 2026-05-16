@@ -10007,7 +10007,31 @@ def dom_subject_admin_dashboard():
         quiz_released = False
         print(f"⚠️ Error getting DOM quiz visibility: {e}")
 
+    return render_template("dom_subject_admin_dashboard.html",
+                           current_admin=current_admin,
+                           allow_admin_add_question=allow_admin_add_question,
+                           quiz_released=quiz_released,
+                           users=users,
+                           current_sort=sort_by,
+                           current_order=sort_order,
+                           problem_visibility=problem_visibility,
+                           total_students=total_students,
+                           total_quiz_questions=total_quiz_questions,
+                           total_exam_questions=total_exam_questions)
+
+
+@app.route("/dom_conceptual_dashboard")
+def dom_conceptual_dashboard():
+    if "loggedin" not in session:
+        return redirect(url_for("login"))
+
+    current_admin = User.query.filter_by(rollnumber=session["rollnumber"]).first()
+    if not current_admin or current_admin.role not in ["admin", "super_admin"]:
+        flash("Admin access required.", "danger")
+        return redirect(url_for("login"))
+
     initialize_dom_conceptual_testing_system()
+
     conceptual_questions_by_co = {co: [] for co in QUIZ_CO_OPTIONS}
     conceptual_questions = (
         db.session.query(
@@ -10026,24 +10050,18 @@ def dom_subject_admin_dashboard():
                 "co_number": co_number or "",
                 "question_text": question_text,
             })
+
     active_conceptual_session = get_dom_conceptual_active_session_for_admin(current_admin)
     conceptual_stats = get_dom_conceptual_stats(active_conceptual_session, current_admin)
 
-    return render_template("dom_subject_admin_dashboard.html",
-                           current_admin=current_admin,
-                           allow_admin_add_question=allow_admin_add_question,
-                           quiz_released=quiz_released,
-                           quiz_co_options=QUIZ_CO_OPTIONS,
-                           conceptual_questions_by_co=conceptual_questions_by_co,
-                           active_conceptual_session=active_conceptual_session,
-                           conceptual_stats=conceptual_stats,
-                           users=users,
-                           current_sort=sort_by,
-                           current_order=sort_order,
-                           problem_visibility=problem_visibility,
-                           total_students=total_students,
-                           total_quiz_questions=total_quiz_questions,
-                           total_exam_questions=total_exam_questions)
+    return render_template(
+        "dom_conceptual_dashboard.html",
+        current_admin=current_admin,
+        quiz_co_options=QUIZ_CO_OPTIONS,
+        conceptual_questions_by_co=conceptual_questions_by_co,
+        active_conceptual_session=active_conceptual_session,
+        conceptual_stats=conceptual_stats,
+    )
 
 
 @app.route("/dom_conceptual_post", methods=["POST"])
@@ -10063,7 +10081,7 @@ def dom_conceptual_post():
 
     if co_number not in QUIZ_CO_OPTIONS or not question or question.co_number != co_number:
         flash("Please select one valid question under the selected CO.", "danger")
-        return redirect(url_for("dom_subject_admin_dashboard"))
+        return redirect(url_for("dom_conceptual_dashboard"))
 
     DOMConceptualQuizSession.query.filter_by(
         admin_id=admin_user.id,
@@ -10079,7 +10097,7 @@ def dom_conceptual_post():
     db.session.commit()
 
     flash("Conceptual testing question posted to students.", "success")
-    return redirect(url_for("dom_subject_admin_dashboard"))
+    return redirect(url_for("dom_conceptual_dashboard"))
 
 
 @app.route("/dom_conceptual_close", methods=["POST"])
@@ -10101,7 +10119,7 @@ def dom_conceptual_close():
     else:
         flash("No active conceptual testing question to close.", "warning")
 
-    return redirect(url_for("dom_subject_admin_dashboard"))
+        return redirect(url_for("dom_conceptual_dashboard"))
 
 
 @app.route("/dom_conceptual_stats")
@@ -11108,7 +11126,7 @@ def reset_user_quiz(user_id):
         flash(
             f"❌ Error resetting quiz for user {user.rollnumber}: {str(e)}", "error")
 
-    return redirect(url_for("dom_subject_admin_dashboard"))
+    return redirect(url_for("dom_conceptual_dashboard"))
 
 
 @app.route("/reset_my_admin_progress", methods=["POST"])
