@@ -9897,44 +9897,39 @@ def dom_subject_admin_dashboard():
     # Add quiz score information for each user
     try:
         user_ids = [user.id for user in users]
-        attempts_by_user = {}
+        quiz_summary_by_user = {}
         if user_ids:
-            all_quiz_attempts = QuizAttempt.query.filter(
-                QuizAttempt.user_id.in_(user_ids),
-                QuizAttempt.quiz_name == DEFAULT_QUIZ_NAME
-            ).all()
-            for attempt in all_quiz_attempts:
-                attempts_by_user.setdefault(attempt.user_id, []).append(attempt)
+            quiz_summary_rows = (
+                db.session.query(
+                    QuizAttempt.user_id,
+                    func.max(QuizAttempt.score).label("best_score"),
+                    func.count(QuizAttempt.id).label("attempts_count")
+                )
+                .filter(
+                    QuizAttempt.user_id.in_(user_ids),
+                    QuizAttempt.quiz_name == DEFAULT_QUIZ_NAME
+                )
+                .group_by(QuizAttempt.user_id)
+                .all()
+            )
+            quiz_summary_by_user = {
+                row.user_id: row for row in quiz_summary_rows
+            }
 
         for user in users:
-            quiz_attempts = attempts_by_user.get(user.id, [])
+            quiz_summary = quiz_summary_by_user.get(user.id)
 
-            if quiz_attempts:
-                # Get best score and total attempts
-                user.quiz_best_score = max(
-                    attempt.score or 0 for attempt in quiz_attempts)
-                user.quiz_total_points = quiz_attempts[0].total_points or 0
-                user.quiz_attempts_count = len(quiz_attempts)
-
-                # Get latest attempt details
-                latest_attempt = max(
-                    quiz_attempts, key=lambda x: x.started_at or datetime.min)
-                user.quiz_latest_score = latest_attempt.score or 0
-                user.quiz_completed_at = latest_attempt.completed_at
+            if quiz_summary:
+                user.quiz_best_score = quiz_summary.best_score or 0
+                user.quiz_attempts_count = quiz_summary.attempts_count or 0
             else:
                 user.quiz_best_score = 0
-                user.quiz_total_points = 0
                 user.quiz_attempts_count = 0
-                user.quiz_latest_score = 0
-                user.quiz_completed_at = None
     except Exception as e:
         print(f"⚠️ Error getting quiz scores: {e}")
         for user in users:
             user.quiz_best_score = 0
-            user.quiz_total_points = 0
             user.quiz_attempts_count = 0
-            user.quiz_latest_score = 0
-            user.quiz_completed_at = None
 
     # Get statistics for DOM Subject dashboard
     total_students = len(users)
@@ -10015,16 +10010,22 @@ def dom_subject_admin_dashboard():
     initialize_dom_conceptual_testing_system()
     conceptual_questions_by_co = {co: [] for co in QUIZ_CO_OPTIONS}
     conceptual_questions = (
-        QuizQuestion.query
+        db.session.query(
+            QuizQuestion.id,
+            QuizQuestion.co_number,
+            QuizQuestion.question_text
+        )
         .filter(QuizQuestion.co_number.in_(QUIZ_CO_OPTIONS))
         .order_by(QuizQuestion.co_number.asc(), QuizQuestion.id.asc())
         .all()
     )
-    for question in conceptual_questions:
-        if question.co_number in conceptual_questions_by_co:
-            conceptual_questions_by_co[question.co_number].append(
-                get_conceptual_question_payload(question)
-            )
+    for question_id, co_number, question_text in conceptual_questions:
+        if co_number in conceptual_questions_by_co:
+            conceptual_questions_by_co[co_number].append({
+                "id": question_id,
+                "co_number": co_number or "",
+                "question_text": question_text,
+            })
     active_conceptual_session = get_dom_conceptual_active_session_for_admin(current_admin)
     conceptual_stats = get_dom_conceptual_stats(active_conceptual_session, current_admin)
 
