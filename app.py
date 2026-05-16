@@ -23,7 +23,7 @@ from flask import (
 )
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
-from sqlalchemy import func, or_, text
+from sqlalchemy import case, func, or_, text
 from sqlalchemy.inspection import inspect
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -5203,33 +5203,61 @@ def get_dom_conceptual_response(session_id, student_id):
 
 
 def get_dom_conceptual_stats(conceptual_session, admin_user):
-    students = get_conceptual_students_for_admin(admin_user)
-    student_ids = [student.id for student in students]
-    responses = []
-    if conceptual_session and student_ids:
-        responses = (
-            DOMConceptualQuizResponse.query
-            .filter(
-                DOMConceptualQuizResponse.session_id == conceptual_session.id,
-                DOMConceptualQuizResponse.student_id.in_(student_ids)
-            )
-            .all()
-        )
+    if admin_user.admin_level == 'super_admin':
+        total_students = User.query.filter_by(role='student').count()
+    else:
+        total_students = count_students_for_admin(admin_user.id)
 
-    correct_count = sum(1 for response in responses if response.is_correct)
-    incorrect_responses = [response for response in responses if not response.is_correct]
-    wrong_rollnumbers = sorted(
-        response.student.rollnumber
-        for response in incorrect_responses
-        if response.student
+    if not conceptual_session:
+        return {
+            "total_students": total_students,
+            "answered_count": 0,
+            "correct_count": 0,
+            "incorrect_count": 0,
+            "pending_count": total_students,
+            "wrong_rollnumbers": [],
+        }
+
+    summary_row = (
+        db.session.query(
+            func.count(DOMConceptualQuizResponse.id).label("answered_count"),
+            func.sum(
+                case(
+                    (DOMConceptualQuizResponse.is_correct.is_(True), 1),
+                    else_=0
+                )
+            ).label("correct_count")
+        )
+        .filter(DOMConceptualQuizResponse.session_id == conceptual_session.id)
+        .first()
     )
 
+    answered_count = int(summary_row.answered_count or 0)
+    correct_count = int(summary_row.correct_count or 0)
+    incorrect_count = max(0, answered_count - correct_count)
+    wrong_rollnumbers = [
+        row[0]
+        for row in (
+            db.session.query(User.rollnumber)
+            .join(
+                DOMConceptualQuizResponse,
+                DOMConceptualQuizResponse.student_id == User.id
+            )
+            .filter(
+                DOMConceptualQuizResponse.session_id == conceptual_session.id,
+                DOMConceptualQuizResponse.is_correct.is_(False)
+            )
+            .order_by(User.rollnumber.asc())
+            .all()
+        )
+    ]
+
     return {
-        "total_students": len(students),
-        "answered_count": len(responses),
+        "total_students": total_students,
+        "answered_count": answered_count,
         "correct_count": correct_count,
-        "incorrect_count": len(incorrect_responses),
-        "pending_count": max(0, len(students) - len(responses)),
+        "incorrect_count": incorrect_count,
+        "pending_count": max(0, total_students - answered_count),
         "wrong_rollnumbers": wrong_rollnumbers,
     }
 
