@@ -10060,6 +10060,25 @@ def dom_conceptual_dashboard():
 
     initialize_dom_conceptual_testing_system()
 
+    active_conceptual_session = get_dom_conceptual_active_session_for_admin(current_admin)
+
+    return render_template(
+        "dom_conceptual_dashboard.html",
+        current_admin=current_admin,
+        quiz_co_options=QUIZ_CO_OPTIONS,
+        active_conceptual_session=active_conceptual_session,
+    )
+
+
+@app.route("/dom_conceptual_questions")
+def dom_conceptual_questions():
+    if "loggedin" not in session:
+        return jsonify({"error": "Not logged in"}), 401
+
+    admin_user = User.query.filter_by(rollnumber=session["rollnumber"]).first()
+    if not admin_user or admin_user.role not in ["admin", "super_admin"]:
+        return jsonify({"error": "Admin access required"}), 403
+
     conceptual_questions_by_co = {co: [] for co in QUIZ_CO_OPTIONS}
     conceptual_questions = (
         db.session.query(
@@ -10079,17 +10098,9 @@ def dom_conceptual_dashboard():
                 "question_text": question_text,
             })
 
-    active_conceptual_session = get_dom_conceptual_active_session_for_admin(current_admin)
-    conceptual_stats = get_dom_conceptual_stats(active_conceptual_session, current_admin)
-
-    return render_template(
-        "dom_conceptual_dashboard.html",
-        current_admin=current_admin,
-        quiz_co_options=QUIZ_CO_OPTIONS,
-        conceptual_questions_by_co=conceptual_questions_by_co,
-        active_conceptual_session=active_conceptual_session,
-        conceptual_stats=conceptual_stats,
-    )
+    return jsonify({
+        "questions_by_co": conceptual_questions_by_co
+    })
 
 
 @app.route("/dom_conceptual_post", methods=["POST"])

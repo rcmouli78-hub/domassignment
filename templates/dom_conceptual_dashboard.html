@@ -131,9 +131,9 @@
               {% endif %}
 
               <div class="mb-2 d-flex justify-content-between">
-                <span>Correct: <strong id="conceptCorrectCount">{{ conceptual_stats.correct_count }}</strong></span>
-                <span>Incorrect: <strong id="conceptIncorrectCount">{{ conceptual_stats.incorrect_count }}</strong></span>
-                <span>Answered: <strong id="conceptAnsweredCount">{{ conceptual_stats.answered_count }}</strong>/<span id="conceptTotalStudents">{{ conceptual_stats.total_students }}</span></span>
+                <span>Correct: <strong id="conceptCorrectCount">0</strong></span>
+                <span>Incorrect: <strong id="conceptIncorrectCount">0</strong></span>
+                <span>Answered: <strong id="conceptAnsweredCount">0</strong>/<span id="conceptTotalStudents">0</span></span>
               </div>
               <div class="mb-3">
                 <div class="d-flex gap-2 align-items-center mb-2">
@@ -146,11 +146,7 @@
 
               <h6 class="text-danger">Wrong Answer Roll Numbers</h6>
               <div id="conceptWrongRolls" class="concept-wrong-list">
-                {% if conceptual_stats.wrong_rollnumbers %}
-                {{ conceptual_stats.wrong_rollnumbers|join(', ') }}
-                {% else %}
                 <span class="text-muted">No wrong answers yet.</span>
-                {% endif %}
               </div>
             </div>
           </div>
@@ -161,7 +157,7 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
       document.addEventListener("DOMContentLoaded", function () {
-        const questionsByCo = {{ conceptual_questions_by_co|tojson }};
+        let questionsByCo = {};
         const coSelect = document.getElementById("conceptCoSelect");
         const questionSelect = document.getElementById("conceptQuestionSelect");
         const correctBar = document.getElementById("conceptCorrectBar");
@@ -196,6 +192,19 @@
           });
         }
 
+        function loadConceptQuestions() {
+          fetch("{{ url_for('dom_conceptual_questions') }}")
+            .then((response) => response.ok ? response.json() : null)
+            .then((data) => {
+              if (!data || !data.questions_by_co) return;
+              questionsByCo = data.questions_by_co;
+              if (coSelect && coSelect.value) {
+                coSelect.dispatchEvent(new Event("change"));
+              }
+            })
+            .catch(() => {});
+        }
+
         function updateConceptBars(data) {
           const answered = Math.max(data.answered_count || 0, 1);
           const correctWidth = Math.max(8, ((data.correct_count || 0) / answered) * 100);
@@ -220,22 +229,21 @@
           }
         }
 
-        updateConceptBars({
-          correct_count: {{ conceptual_stats.correct_count|tojson }},
-          incorrect_count: {{ conceptual_stats.incorrect_count|tojson }},
-          answered_count: {{ conceptual_stats.answered_count|tojson }},
-          total_students: {{ conceptual_stats.total_students|tojson }},
-          wrong_rollnumbers: {{ conceptual_stats.wrong_rollnumbers|tojson }}
-        });
+        function loadConceptStats() {
+          fetch("{{ url_for('dom_conceptual_stats') }}")
+            .then((response) => response.ok ? response.json() : null)
+            .then((data) => {
+              if (data) updateConceptBars(data);
+            })
+            .catch(() => {});
+        }
+
+        loadConceptQuestions();
+        loadConceptStats();
 
         if (correctBar && incorrectBar) {
           setInterval(() => {
-            fetch("{{ url_for('dom_conceptual_stats') }}")
-              .then((response) => response.ok ? response.json() : null)
-              .then((data) => {
-                if (data) updateConceptBars(data);
-              })
-              .catch(() => {});
+            loadConceptStats();
           }, 3000);
         }
       });
