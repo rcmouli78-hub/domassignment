@@ -9896,20 +9896,30 @@ def dom_subject_admin_dashboard():
 
     # Add quiz score information for each user
     try:
+        user_ids = [user.id for user in users]
+        attempts_by_user = {}
+        if user_ids:
+            all_quiz_attempts = QuizAttempt.query.filter(
+                QuizAttempt.user_id.in_(user_ids),
+                QuizAttempt.quiz_name == DEFAULT_QUIZ_NAME
+            ).all()
+            for attempt in all_quiz_attempts:
+                attempts_by_user.setdefault(attempt.user_id, []).append(attempt)
+
         for user in users:
-            # Get quiz attempts for this user
-            quiz_attempts = QuizAttempt.query.filter_by(user_id=user.id, quiz_name=DEFAULT_QUIZ_NAME).all()
+            quiz_attempts = attempts_by_user.get(user.id, [])
 
             if quiz_attempts:
                 # Get best score and total attempts
                 user.quiz_best_score = max(
-                    attempt.score for attempt in quiz_attempts)
-                user.quiz_total_points = quiz_attempts[0].total_points if quiz_attempts else 0
+                    attempt.score or 0 for attempt in quiz_attempts)
+                user.quiz_total_points = quiz_attempts[0].total_points or 0
                 user.quiz_attempts_count = len(quiz_attempts)
 
                 # Get latest attempt details
-                latest_attempt = max(quiz_attempts, key=lambda x: x.started_at)
-                user.quiz_latest_score = latest_attempt.score
+                latest_attempt = max(
+                    quiz_attempts, key=lambda x: x.started_at or datetime.min)
+                user.quiz_latest_score = latest_attempt.score or 0
                 user.quiz_completed_at = latest_attempt.completed_at
             else:
                 user.quiz_best_score = 0
@@ -9919,7 +9929,6 @@ def dom_subject_admin_dashboard():
                 user.quiz_completed_at = None
     except Exception as e:
         print(f"⚠️ Error getting quiz scores: {e}")
-        # Set default values for all users
         for user in users:
             user.quiz_best_score = 0
             user.quiz_total_points = 0
@@ -10004,12 +10013,18 @@ def dom_subject_admin_dashboard():
         print(f"⚠️ Error getting DOM quiz visibility: {e}")
 
     initialize_dom_conceptual_testing_system()
-    conceptual_questions_by_co = {}
-    for co in QUIZ_CO_OPTIONS:
-        conceptual_questions_by_co[co] = [
-            get_conceptual_question_payload(question)
-            for question in QuizQuestion.query.filter_by(co_number=co).order_by(QuizQuestion.id.asc()).all()
-        ]
+    conceptual_questions_by_co = {co: [] for co in QUIZ_CO_OPTIONS}
+    conceptual_questions = (
+        QuizQuestion.query
+        .filter(QuizQuestion.co_number.in_(QUIZ_CO_OPTIONS))
+        .order_by(QuizQuestion.co_number.asc(), QuizQuestion.id.asc())
+        .all()
+    )
+    for question in conceptual_questions:
+        if question.co_number in conceptual_questions_by_co:
+            conceptual_questions_by_co[question.co_number].append(
+                get_conceptual_question_payload(question)
+            )
     active_conceptual_session = get_dom_conceptual_active_session_for_admin(current_admin)
     conceptual_stats = get_dom_conceptual_stats(active_conceptual_session, current_admin)
 
