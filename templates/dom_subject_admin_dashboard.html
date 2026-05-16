@@ -455,25 +455,6 @@
         </div>
       </div>
 
-      <div class="nav-section">
-        <h4 class="section-title">
-          <i class="fas fa-bolt"></i>Conceptual Testing Quiz
-        </h4>
-        <p class="text-muted mb-3">
-          Open the separate conceptual quiz page to post one-question checks and view correct/wrong statistics.
-        </p>
-        <div class="row g-3">
-          <div class="col-lg-4 col-md-6">
-            <a
-              href="{{ url_for('dom_conceptual_dashboard') }}"
-              class="nav-btn w-100 dom-btn-primary"
-            >
-              <i class="fas fa-chart-column"></i>Open Conceptual Quiz Page
-            </a>
-          </div>
-        </div>
-      </div>
-
       <!-- Question Management Section -->
       {% if (current_admin.admin_level == 'super_admin' and not
       session.get('impersonating')) or (current_admin.admin_level == 'admin' and
