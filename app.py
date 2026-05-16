@@ -9732,6 +9732,7 @@ def admin_dashboard():
         from sqlalchemy import text
         visibility_records = db.session.query(AdminDashboardVisibility).all()
         visibility_map = {}
+        admin_student_counts = {}
         for v in visibility_records:
             if v.admin_id not in visibility_map:
                 visibility_map[v.admin_id] = {}
@@ -9743,6 +9744,15 @@ def admin_dashboard():
                 'kdm': True,
                 'python': True
             })
+            if admin.admin_level == 'admin':
+                assignments = AdminRollAssignment.query.filter_by(admin_id=admin.id).all()
+                admin_student_counts[admin.id] = sum(
+                    count_rolls_in_assignment(assignment) for assignment in assignments
+                )
+            else:
+                admin_student_counts[admin.id] = len(users)
+    else:
+        admin_student_counts = {}
 
     # --- Apply dashboard visibility settings for sub-admins ---
     if current_admin.admin_level != 'super_admin':
@@ -9773,6 +9783,7 @@ def admin_dashboard():
         current_order=sort_order,
         current_admin=current_admin,
         all_admins=all_admins,
+        admin_student_counts=admin_student_counts,
         count_students_for_admin=count_students_for_admin,
         is_super_admin=(current_admin.admin_level == 'super_admin'),
         allow_admin_add_question=allow_admin_add_question,
@@ -11506,6 +11517,47 @@ def generate_roll_range(start_roll, end_roll):
             return []
 
 
+def count_rolls_in_assignment(assignment):
+    """Count rolls for an assignment without expanding the entire range."""
+    try:
+        if assignment.assignment_type == 'individual':
+            if not assignment.roll_numbers:
+                return 0
+            return len([
+                roll.strip()
+                for roll in assignment.roll_numbers.split(',')
+                if roll.strip()
+            ])
+
+        if assignment.assignment_type != 'range':
+            return 0
+
+        start_roll = assignment.roll_start
+        end_roll = assignment.roll_end
+
+        try:
+            start_num = int(start_roll)
+            end_num = int(end_roll)
+            return max(0, end_num - start_num + 1)
+        except (ValueError, TypeError):
+            start_match = re.match(r'([A-Za-z]*)(\d+)', str(start_roll))
+            end_match = re.match(r'([A-Za-z]*)(\d+)', str(end_roll))
+
+            if start_match and end_match:
+                start_prefix = start_match.group(1)
+                end_prefix = end_match.group(1)
+                start_num = int(start_match.group(2))
+                end_num = int(end_match.group(2))
+
+                if start_prefix == end_prefix:
+                    return max(0, end_num - start_num + 1)
+
+            return 2 if start_roll and end_roll else 0
+    except Exception as e:
+        print(f"Error counting assignment {getattr(assignment, 'id', 'unknown')}: {e}")
+        return 0
+
+
 def get_students_for_admin(admin_user):
     """Get all students that an admin can manage"""
     if admin_user.admin_level == 'super_admin':
@@ -11559,9 +11611,8 @@ def count_students_for_admin(admin_id):
             # Super admin sees all students in database
             return User.query.filter_by(role='student').count()
         elif admin.admin_level == 'admin':
-            # Count all assigned roll numbers (including ranges)
-            assigned_rolls = get_assigned_roll_numbers(admin_id)
-            return len(assigned_rolls)
+            assignments = AdminRollAssignment.query.filter_by(admin_id=admin_id).all()
+            return sum(count_rolls_in_assignment(assignment) for assignment in assignments)
     return 0
 
 

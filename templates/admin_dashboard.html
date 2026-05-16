@@ -531,7 +531,7 @@
                       </span>
                       {% else %}
                       <span class="badge badge-modern bg-secondary text-white">
-                        {{ count_students_for_admin(admin.id) }} students
+                        {{ admin_student_counts.get(admin.id, 0) }} students
                       </span>
                       {% endif %}
                     </td>
